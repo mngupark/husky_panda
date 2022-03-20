@@ -1,0 +1,8 @@
+<library path="lib/libmanipulation_controller">
+    <class name="husky_panda_mobile_manipulation/ManipulationController" type="husky_panda_mobile_manipulation::ManipulationController"
+           base_class_type="controller_interface::ControllerBase">
+        <description>
+            A sampling based controller for the husky-panda robot using a dynamic model for interaction handling.
+        </description>
+    </class>
+</library>
