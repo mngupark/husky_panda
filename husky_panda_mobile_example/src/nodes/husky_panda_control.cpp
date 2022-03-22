@@ -42,11 +42,11 @@ int main(int argc, char** argv) {
   ros::Publisher state_publisher =
       nh.advertise<sensor_msgs::JointState>("/joint_states", 10);
   sensor_msgs::JointState joint_state;
-  joint_state.name = {"front_left_wheel_link", "front_right_wheel_link", "rear_left_wheel_link", "rear_right_wheel_link",
+  joint_state.name = {"x_base_joint", "y_base_joint", "w_base_joint",
                       "panda_joint1", "panda_joint2", "panda_joint3",
                       "panda_joint4", "panda_joint5", "panda_joint6",
                       "panda_joint7"};
-  joint_state.position.resize(11);
+  joint_state.position.resize(10);
   joint_state.header.frame_id = "world";
 
   ros::Publisher ee_publisher =
