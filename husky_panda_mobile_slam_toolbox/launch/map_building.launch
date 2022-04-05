@@ -1,10 +1,18 @@
 <launch>
     <arg name="front_scan" default="sick_scan"/>
     <arg name="rear_scan" default="hokuyo_scan"/>
+    <arg name="front_scan_mount_link" default="laser_mount_link" />
+    <arg name="rear_scan_mount_link" default="hokuyo_laser_mount" />
+    <arg name="laser" default="laser" />
+    <arg name="hokuyo_laser" default="hokuyo_scan" />
 
     <node name="husky_panda_mobile_scan" pkg="husky_panda_mobile_slam_toolbox" type="husky_panda_mobile_scan">
         <param name="front_scan" value="$(arg front_scan)"/>
         <param name="rear_scan" value="$(arg rear_scan)"/>
+        <param name="front_scan_mount_link" value="$(arg front_scan_mount_link)" />
+        <param name="rear_scan_mount_link" value="$(arg rear_scan_mount_link)" />
+        <param name="laser" value="$(arg laser)" />
+        <param name="hokuyo_laser" value="$(arg hokuyo_laser)" />
     </node>
 
 

@@ -148,6 +148,7 @@ add_executable(husky_panda_mobile_scan src/husky_panda_mobile_scan.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(husky_panda_mobile_scan
   ${catkin_LIBRARIES}
+  -lpthread
 )
 
 #############
