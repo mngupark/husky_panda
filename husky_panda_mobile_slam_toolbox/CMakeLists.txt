@@ -12,8 +12,13 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   tf
   tf2_ros
+  tf_conversions
   laser_geometry
+  pcl_ros
+  pcl_conversions
 )
+
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -150,7 +155,8 @@ add_executable(husky_panda_mobile_scan src/husky_panda_mobile_scan.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(husky_panda_mobile_scan
   ${catkin_LIBRARIES}
-  -lpthread
+  #-lpthread
+  Eigen3::Eigen
 )
 
 #############
