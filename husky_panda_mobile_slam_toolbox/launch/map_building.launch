@@ -31,4 +31,13 @@
         <param name="fake_scan_mount_frame_id" value="$(arg fake_scan_mount_frame_id)" />
     </node>
 
+    <node name="pointcloud_to_laserscan_node" pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" output="screen">
+        <remap from="cloud_in" to="merged_cloud"/>
+        <remap from="scan" to="$(arg fake_scan_topic)"/>
+    </node>
+
+    <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+        <rosparam command="load" file="$(find husky_panda_mobile_slam_toolbox)/config/mapper_params_online_async.yaml" />
+    </node>
+
 </launch>

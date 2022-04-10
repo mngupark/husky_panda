@@ -8,10 +8,14 @@
 #include "tf/LinearMath/Quaternion.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "tf_conversions/tf_eigen.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/message_filter.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 // messages
 #include "sensor_msgs/LaserScan.h"
 #include "sensor_msgs/PointCloud2.h"
+#include "sensor_msgs/point_cloud2_iterator.h"
 #include "geometry_msgs/TransformStamped.h"
 
 // pcl
@@ -38,7 +42,7 @@ private:
     std::string front_cloud_topic_, rear_cloud_topic_;
     
     // ROS Publisher & Subscriber
-    ros::Publisher laser_scan_publisher_;
+    ros::Publisher merged_scan_publisher_, merged_cloud_publisher_;
     ros::Publisher front_cloud_publisher_, rear_cloud_publisher_;
     ros::Subscriber front_scan_subscriber_, rear_scan_subscriber_;
 
@@ -51,10 +55,24 @@ private:
     // laser scan & point cloud
     sensor_msgs::LaserScan front_scan_, rear_scan_;
     int seq_ = 0;
+    int stamped_in_seq_ = 0;
     float deg_max_ = DEG2RAD(180.0);
-    float deg_min_ = -DEG2RAD(90.0);
+    float deg_min_ = DEG2RAD(-180.0);
+    bool use_inf_ = true;
+    double inf_epsilon_ = 1.0;
+    double tolerance_ = 0.01;
+    unsigned int input_queue_size_ = 1;
+    double max_height_ = std::numeric_limits<double>::max();
+    double min_height_ = std::numeric_limits<double>::min();
+    double range_min_ = 0.0;
+    double range_max_ = std::numeric_limits<double>::max();
+    Eigen::Matrix3d front_rotation_matrix_, rear_rotation_matrix_;
+    boost::shared_ptr<tf2_ros::Buffer> tf2_;
+    boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    boost::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::PointCloud2>> message_filter_;
 
     sensor_msgs::PointCloud2 front_cloud_, rear_cloud_;
+    sensor_msgs::PointCloud2 merged_cloud_;
     laser_geometry::LaserProjection front_scan_projector_, rear_scan_projector_;
 
     // tf
@@ -89,15 +107,15 @@ void HuskyPandaMobileScanMerger::rear_scan_callback(const sensor_msgs::LaserScan
     rear_scan_ = *scan;
     rear_scan_projector_.transformLaserScanToPointCloud(rear_scan_link_, rear_scan_, rear_cloud_, rear_scan_listener_);
     pcl::fromROSMsg(rear_cloud_, rear_pcl_cloud_);
-    rear_cloud_publisher_.publish(rear_cloud_);
+    // rear_cloud_publisher_.publish(rear_cloud_);
     return;
 }
 
 void HuskyPandaMobileScanMerger::scan_merge() {
     while(nh_.ok()) {
-        set_transform();    
+        // set_transform(); // static tf is already generated in URDF   
         merge_clouds();
-        convert_cloud_to_scan();
+        // convert_cloud_to_scan();
         ros::spinOnce();
     }
 }
@@ -225,56 +243,166 @@ void HuskyPandaMobileScanMerger::set_transform() {
 }
 
 void HuskyPandaMobileScanMerger::merge_clouds() {
-    pcl::PointCloud<pcl::PointXYZ> transformed_pcl;
-    tf::TransformListener front_to_fake_listener;
-    tf::StampedTransform front_to_fake_transform;
+    pcl::PointCloud<pcl::PointXYZ> transformed_front_pcl, transformed_rear_pcl;
+    tf::TransformListener front_to_fake_listener, rear_to_fake_listener;
+    tf::StampedTransform fake_to_front_transform, rear_to_fake_transform;
     try
     {
         // Verify that TF knows how to transform from the received scan to the destination scan frame
-        front_to_fake_listener.waitForTransform(front_scan_link_.c_str(), "fake_scan_link", ros::Time::now(), ros::Duration(1));
+        front_to_fake_listener.waitForTransform("fake_scan_link", front_scan_link_.c_str() , ros::Time::now(), ros::Duration(1));
+        rear_to_fake_listener.waitForTransform("fake_scan_link", rear_scan_link_.c_str(), ros::Time::now(), ros::Duration(1));
 
-        front_to_fake_listener.lookupTransform(front_scan_link_.c_str(), "fake_scan_link",
-                                                   ros::Time::now(), front_to_fake_transform);
+        front_to_fake_listener.lookupTransform("fake_scan_link", front_scan_link_.c_str(),
+                                                   ros::Time::now(), fake_to_front_transform);
+        rear_to_fake_listener.lookupTransform("fake_scan_link", rear_scan_link_.c_str(),
+                                                   ros::Time::now(), rear_to_fake_transform);
     }
     catch (tf::TransformException ex)
     {
         ROS_ERROR("%s", ex.what());
         ros::Duration(1.0).sleep();
     }
-    Eigen::Vector3d front_to_fake_translation;
-    Eigen::Matrix3d front_to_fake_rotation;
-    Eigen::Quaterniond front_to_fake_quaternion;
-    tf::vectorTFToEigen(front_to_fake_transform.getOrigin(), front_to_fake_translation);
-    tf::quaternionTFToEigen(front_to_fake_transform.getRotation(), front_to_fake_quaternion);
-    front_to_fake_rotation = front_to_fake_quaternion.toRotationMatrix();
-    Eigen::Matrix4d front_to_fake_matrix;
-    front_to_fake_matrix.block<3, 3>(0, 0) = front_to_fake_rotation;
-    front_to_fake_matrix.block<3, 1>(0, 3) = front_to_fake_translation;
-    front_to_fake_matrix(3, 3) = 1.0;
-    pcl::transformPointCloud(front_pcl_cloud_, transformed_pcl, front_to_fake_matrix, true);
+    Eigen::Vector3d fake_to_front_translation, fake_to_rear_translation;
+    Eigen::Matrix3d fake_to_front_rotation, fake_to_rear_rotation;
+    Eigen::Quaterniond fake_to_front_quaternion, fake_to_rear_quaternion;
+    tf::vectorTFToEigen(fake_to_front_transform.getOrigin(), fake_to_front_translation);
+    tf::vectorTFToEigen(rear_to_fake_transform.getOrigin(), fake_to_rear_translation);
+    tf::quaternionTFToEigen(fake_to_front_transform.getRotation(), fake_to_front_quaternion);
+    tf::quaternionTFToEigen(rear_to_fake_transform.getRotation(), fake_to_rear_quaternion);
+    fake_to_front_rotation = fake_to_front_quaternion.normalized().toRotationMatrix();
+    fake_to_rear_rotation = fake_to_rear_quaternion.normalized().toRotationMatrix();
+    Eigen::Matrix4d fake_to_front_matrix, fake_to_rear_matrix;
+    fake_to_front_matrix.setZero();
+    fake_to_front_matrix.block<3, 3>(0, 0) = fake_to_front_rotation;
+    fake_to_front_matrix.block<3, 1>(0, 3) = fake_to_front_translation;
+    fake_to_front_matrix(3, 3) = 1.0;
+    fake_to_rear_matrix.setZero();
+    fake_to_rear_matrix.block<3, 3>(0, 0) = fake_to_rear_rotation;
+    fake_to_rear_matrix.block<3, 1>(0, 3) = fake_to_rear_translation;
+    fake_to_rear_matrix(3, 3) = 1.0;
+    
+    pcl::transformPointCloud(front_pcl_cloud_, transformed_front_pcl, fake_to_front_matrix, true);
+    pcl::transformPointCloud(rear_pcl_cloud_, transformed_rear_pcl, fake_to_rear_matrix, true);
+    // transformed_front_pcl.header.frame_id = "fake_scan_link";
+    // transformed_rear_pcl.header.frame_id = "fake_scan_link";
 
-    sensor_msgs::PointCloud2 temp_cloud;
-    pcl::toROSMsg(transformed_pcl, temp_cloud);
-    rear_cloud_publisher_.publish(temp_cloud);
+    // Merge two different point clouds when there are duplicated points
+    /// @TODO: Filtering the point clouds into one point cloud using KDTree(K-Dimensional Tree).
+    pcl::PointCloud<pcl::PointXYZ> merged_pcl, filtered_pcl;
+    merged_pcl.header.frame_id = "fake_scan_link";
+    pcl_conversions::toPCL(ros::Time::now(), merged_pcl.header.stamp);
+    merged_pcl += transformed_front_pcl;
+    merged_pcl += transformed_rear_pcl;
+
+    // Publish ROS topic after converting clouds from pcl::PointCloud<pcl::PointXYZ> to sensor_msgs::PointCloud2
+    sensor_msgs::PointCloud2 temp_front_cloud, temp_rear_cloud;
+    pcl::toROSMsg(transformed_front_pcl, temp_front_cloud);
+    pcl::toROSMsg(transformed_rear_pcl, temp_rear_cloud);
+    pcl::toROSMsg(merged_pcl, merged_cloud_);
+    temp_front_cloud.header.frame_id = "fake_scan_link";
+    temp_rear_cloud.header.frame_id = "fake_scan_link";
+    // // // // ROS_INFO("%s %s", temp_front_cloud.header.frame_id.c_str(), temp_rear_cloud.header.frame_id.c_str());
+    front_cloud_publisher_.publish(temp_front_cloud);
+    rear_cloud_publisher_.publish(temp_rear_cloud);
+    merged_cloud_publisher_.publish(merged_cloud_);
 }
 
 void HuskyPandaMobileScanMerger::convert_cloud_to_scan() {
-    //     sensor_msgs::LaserScan scan;
-    //     scan.header.frame_id = fake_scan_frame_id_;
-    //     scan.header.stamp = ros::Time::now();
-    //     scan.header.seq = seq++;
-    //     scan.angle_max = deg_max;
-    //     scan.angle_min = deg_min;
-    //     scan.angle_increment = (front_scan.angle_increment + rear_scan.angle_increment) / 2.0;
-    //     //front_scan.intensities.insert(front_scan.intensities.end(), rear_scan.intensities.begin(), rear_scan.intensities.end());
-    //     //scan.intensities = front_scan.intensities;
-    //     scan.range_max = std::min(front_scan.range_max, rear_scan.range_max);
-    //     scan.range_min = std::max(front_scan.range_min, rear_scan.range_min);
-    //     //front_scan.ranges.insert(front_scan.ranges.end(), rear_scan.ranges.begin(), rear_scan.ranges.end());
-    //     scan.ranges = front_scan.ranges;
-    //     scan.scan_time = std::min(front_scan.scan_time, rear_scan.scan_time);
-    //     scan.time_increment = std::min(front_scan.time_increment, rear_scan.time_increment);
-    //     laser_scan_publisher.publish(scan);
+  // build laserscan output
+  sensor_msgs::LaserScan output;
+  output.header = merged_cloud_.header;
+  output.header.frame_id = "fake_scan_link";
+
+  output.angle_min = deg_max_;
+  output.angle_max = deg_min_;
+  output.angle_increment = M_PI / 360.0;
+  output.time_increment = 0.0;
+  output.scan_time = std::min(front_scan_.scan_time, rear_scan_.scan_time);
+  output.range_min = range_min_;//std::max(front_scan_.range_min, rear_scan_.range_min);
+  output.range_max = range_max_;//std::min(front_scan_.range_max, rear_scan_.range_max);
+
+  // determine amount of rays to create
+  uint32_t ranges_size = std::ceil((output.angle_max - output.angle_min) / output.angle_increment);
+
+  // determine if laserscan rays with no obstacle data will evaluate to infinity or max_range
+  if (use_inf_)
+  {
+    output.ranges.assign(ranges_size, std::numeric_limits<double>::infinity());
+  }
+  else
+  {
+    output.ranges.assign(ranges_size, output.range_max + inf_epsilon_);
+  }
+
+  sensor_msgs::PointCloud2ConstPtr cloud_out;
+  sensor_msgs::PointCloud2Ptr cloud;
+
+  // Transform cloud if necessary
+//   if (!(output.header.frame_id == merged_cloud_.header.frame_id))
+//   {
+//     try
+//     {
+//       cloud.reset(new sensor_msgs::PointCloud2);
+//       tf2_->transform(merged_cloud_, *cloud, "fake_scan_link", ros::Duration(tolerance_));
+//       cloud_out = cloud;
+//     }
+//     catch (tf2::TransformException& ex)
+//     {
+//       ROS_ERROR("%s", ex.what());
+//       return;
+//     }
+//   }
+//   else
+//   {
+    cloud_out = boost::make_shared<const sensor_msgs::PointCloud2>(merged_cloud_);
+//   }
+
+  // Iterate through pointcloud
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud_out, "x"), iter_y(*cloud_out, "y"),
+       iter_z(*cloud_out, "z");
+       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
+  {
+    if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z))
+    {
+      ROS_DEBUG("rejected for nan in point(%f, %f, %f)\n", *iter_x, *iter_y, *iter_z);
+      continue;
+    }
+
+    if (*iter_z > max_height_ || *iter_z < min_height_)
+    {
+      ROS_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
+      continue;
+    }
+
+    double range = hypot(*iter_x, *iter_y);
+    if (range < range_min_)
+    {
+      ROS_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x,
+                    *iter_y, *iter_z);
+      continue;
+    }
+    if (range > range_max_)
+    {
+      ROS_DEBUG("rejected for range %f above maximum value %f. Point: (%f, %f, %f)", range, range_max_, *iter_x,
+                    *iter_y, *iter_z);
+      continue;
+    }
+
+    double angle = atan2(*iter_y, *iter_x);
+    if (angle < output.angle_min || angle > output.angle_max)
+    {
+      ROS_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, output.angle_min, output.angle_max);
+      continue;
+    }
+
+    // overwrite range at laserscan ray if new range is smaller
+    int index = (angle - output.angle_min) / output.angle_increment;
+    if (range < output.ranges[index])
+    {
+      output.ranges[index] = range;
+    }
+  }
+  merged_scan_publisher_.publish(output);
 }
 
 HuskyPandaMobileScanMerger::HuskyPandaMobileScanMerger(/* args */)
@@ -299,12 +427,25 @@ HuskyPandaMobileScanMerger::HuskyPandaMobileScanMerger(/* args */)
     // ROS Publisher & Subscriber
     front_scan_subscriber_ = nh_.subscribe<sensor_msgs::LaserScan>(front_scan_topic_, 50, &HuskyPandaMobileScanMerger::front_scan_callback, this);
     rear_scan_subscriber_ = nh_.subscribe<sensor_msgs::LaserScan>(rear_scan_topic_, 50, &HuskyPandaMobileScanMerger::rear_scan_callback, this);
-    laser_scan_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(fake_scan_topic_, 1000);
+    merged_scan_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(fake_scan_topic_, 100, false);
     front_cloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (front_cloud_topic_, 100, false);
     rear_cloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> (rear_cloud_topic_, 100, false);
+    merged_cloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2> ("/merged_cloud", 100, false);
 
     // listen for the tf transform
-    get_transform();
+    // get_transform();
+
+    // calculate the rotation matrix for skrewed scan
+    front_rotation_matrix_.setZero();
+    rear_rotation_matrix_.setZero();
+    double front_theta = DEG2RAD(45.0);
+    double rear_theta = DEG2RAD(-135.0);
+    front_rotation_matrix_ <<   cos(front_theta), -sin(front_theta),  0,
+                                sin(front_theta),  cos(front_theta),  0,
+                                0               ,  0               ,  1;
+    rear_rotation_matrix_ <<    cos(rear_theta), -sin(rear_theta),  0,
+                                sin(rear_theta),  cos(rear_theta),  0,
+                                0              ,  0              ,  1;
 
     // Start merging
     scan_merge();
