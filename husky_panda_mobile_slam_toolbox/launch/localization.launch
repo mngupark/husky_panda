@@ -32,8 +32,8 @@
         <remap from="scan" to="$(arg fake_scan_topic)"/>
     </node>
 
-    <node pkg="slam_toolbox" type="localization_slam_toolbox_node" name="slam_toolbox" output="screen">
+    <!-- <node pkg="slam_toolbox" type="localization_slam_toolbox_node" name="slam_toolbox" output="screen">
         <rosparam command="load" file="$(find husky_panda_mobile_slam_toolbox)/config/mapper_params_localization.yaml" />
-    </node>
+    </node> -->
 
 </launch>
