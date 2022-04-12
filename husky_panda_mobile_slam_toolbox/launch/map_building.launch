@@ -1,38 +1,34 @@
 <launch>
     <arg name="front_scan_topic" default="/sick_scan"/>
     <arg name="front_cloud_topic" default="/sick_cloud"/>
-    <arg name="front_scan_mount_parent_link" default="top_plate_front_link" />
-    <arg name="front_scan_mount_link" default="laser_mount_link" />
-    <arg name="front_scan_link" default="laser" />
+    <arg name="front_scan_frame_id" default="laser" />
 
     <arg name="rear_scan_topic" default="/hokuyo_scan"/>
     <arg name="rear_cloud_topic" default="/hokuyo_cloud"/>
-    <arg name="rear_scan_mount_parent_link" default="top_plate_rear_link" />
-    <arg name="rear_scan_mount_link" default="hokuyo_laser_mount" />
-    <arg name="rear_scan_link" default="hokuyo_laser" />
+    <arg name="rear_scan_frame_id" default="hokuyo_laser" />
 
     <arg name="fake_scan_topic" default="/fake_scan" />
+    <arg name="fake_cloud_topic" default="/fake_cloud" />
     <arg name="fake_scan_mount_frame_id" default="top_plate_link" />
+    <arg name="fake_scan_frame_id" default="fake_laser" />
 
     <node name="husky_panda_mobile_scan" pkg="husky_panda_mobile_slam_toolbox" type="husky_panda_mobile_scan" output="screen" >
         <param name="front_scan_topic" value="$(arg front_scan_topic)"/>
         <param name="front_cloud_topic" value="$(arg front_cloud_topic)"/>
-        <param name="front_scan_mount_parent_link" value="$(arg front_scan_mount_parent_link)" />
-        <param name="front_scan_mount_link" value="$(arg front_scan_mount_link)" />
-        <param name="front_scan_link" value="$(arg front_scan_link)" />
+        <param name="front_scan_frame_id" value="$(arg front_scan_frame_id)" />
 
         <param name="rear_scan_topic" value="$(arg rear_scan_topic)"/>
         <param name="rear_cloud_topic" value="$(arg rear_cloud_topic)"/>
-        <param name="rear_scan_mount_parent_link" value="$(arg rear_scan_mount_parent_link)" />
-        <param name="rear_scan_mount_link" value="$(arg rear_scan_mount_link)" />
-        <param name="rear_scan_link" value="$(arg rear_scan_link)" />
+        <param name="rear_scan_frame_id" value="$(arg rear_scan_frame_id)" />
 
         <param name="fake_scan_topic" value="$(arg fake_scan_topic)" />
+        <param name="fake_cloud_topic" value="$(arg fake_cloud_topic)" />
         <param name="fake_scan_mount_frame_id" value="$(arg fake_scan_mount_frame_id)" />
+        <param name="fake_scan_frame_id" value="$(arg fake_scan_frame_id)" />
     </node>
 
     <node name="pointcloud_to_laserscan_node" pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" output="screen">
-        <remap from="cloud_in" to="merged_cloud"/>
+        <remap from="cloud_in" to="$(arg fake_cloud_topic)"/>
         <remap from="scan" to="$(arg fake_scan_topic)"/>
     </node>
 
