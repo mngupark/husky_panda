@@ -50,9 +50,9 @@ namespace HuskyPandaWholeBodyController
         double wheel_separation_;
         double wheel_radius_;
 
-        double wheel_separation_multiplier;
-        double left_wheel_radius_multiplier;
-        double right_wheel_radius_multiplier;
+        double wheel_separation_multiplier_;
+        double left_wheel_radius_multiplier_;
+        double right_wheel_radius_multiplier_;
 
         std::string base_frame_id_;
 
