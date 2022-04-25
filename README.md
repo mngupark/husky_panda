@@ -1,1 +1,1 @@
-# husky_panda_manipulation 
+# husky_panda
