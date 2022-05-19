@@ -10,6 +10,7 @@ project(husky_panda_slam_toolbox)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
+  nav_msgs
   tf
   tf2_ros
   tf_conversions
@@ -141,6 +142,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(husky_panda_scan src/husky_panda_scan.cpp)
+add_executable(husky_panda_path src/husky_panda_path.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -157,6 +159,10 @@ target_link_libraries(husky_panda_scan
   ${catkin_LIBRARIES}
   #-lpthread
   Eigen3::Eigen
+)
+
+target_link_libraries(husky_panda_path
+  ${catkin_LIBRARIES}
 )
 
 #############
