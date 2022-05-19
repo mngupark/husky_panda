@@ -125,7 +125,7 @@ namespace husky_panda_controller{
   {
   }
 
-  bool HuskyPandaController::init(hardware_interface::VelocityJointInterface* hw,
+  bool HuskyPandaController::init(hardware_interface::RobotHW* hw,
             ros::NodeHandle& root_nh,
             ros::NodeHandle &controller_nh)
   {
@@ -133,6 +133,96 @@ namespace husky_panda_controller{
     std::size_t id = complete_ns.find_last_of("/");
     name_ = complete_ns.substr(id + 1);
 
+    if (!init_parameters(controller_nh)) return false;
+
+    if (publish_cmd_)
+    {
+      cmd_vel_pub_.reset(new realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped>(controller_nh, "cmd_vel_out", 100));
+    }
+
+    // Wheel joint controller state:
+    if (publish_wheel_joint_controller_state_)
+    {
+      controller_state_pub_.reset(new realtime_tools::RealtimePublisher<control_msgs::JointTrajectoryControllerState>(controller_nh, "wheel_joint_controller_state", 100));
+
+      const size_t num_wheels = wheel_joints_size_ * 2;
+
+      controller_state_pub_->msg_.joint_names.resize(num_wheels);
+
+      controller_state_pub_->msg_.desired.positions.resize(num_wheels);
+      controller_state_pub_->msg_.desired.velocities.resize(num_wheels);
+      controller_state_pub_->msg_.desired.accelerations.resize(num_wheels);
+      controller_state_pub_->msg_.desired.effort.resize(num_wheels);
+
+      controller_state_pub_->msg_.actual.positions.resize(num_wheels);
+      controller_state_pub_->msg_.actual.velocities.resize(num_wheels);
+      controller_state_pub_->msg_.actual.accelerations.resize(num_wheels);
+      controller_state_pub_->msg_.actual.effort.resize(num_wheels);
+
+      controller_state_pub_->msg_.error.positions.resize(num_wheels);
+      controller_state_pub_->msg_.error.velocities.resize(num_wheels);
+      controller_state_pub_->msg_.error.accelerations.resize(num_wheels);
+      controller_state_pub_->msg_.error.effort.resize(num_wheels);
+
+      for (size_t i = 0; i < wheel_joints_size_; ++i)
+      {
+        controller_state_pub_->msg_.joint_names[i] = left_wheel_names[i];
+        controller_state_pub_->msg_.joint_names[i + wheel_joints_size_] = right_wheel_names[i];
+      }
+
+      vel_left_previous_.resize(wheel_joints_size_, 0.0);
+      vel_right_previous_.resize(wheel_joints_size_, 0.0);
+    }
+
+    setOdomPubFields(root_nh, controller_nh);
+
+    // Get the joint object to use in the realtime loop
+    for (size_t i = 0; i < wheel_joints_size_; ++i)
+    {
+      ROS_INFO_STREAM_NAMED(name_,
+                            "Adding left wheel with joint name: " << left_wheel_names[i]
+                            << " and right wheel with joint name: " << right_wheel_names[i]);
+      left_wheel_joints_[i] = hw->getHandle(left_wheel_names[i]);  // throws on failure
+      right_wheel_joints_[i] = hw->getHandle(right_wheel_names[i]);  // throws on failure
+    }
+
+    sub_command_ = controller_nh.subscribe("cmd_vel", 1, &HuskyPandaController::cmdVelCallback, this);
+
+    // Initialize dynamic parameters
+    DynamicParams dynamic_params;
+    dynamic_params.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
+    dynamic_params.right_wheel_radius_multiplier = right_wheel_radius_multiplier_;
+    dynamic_params.wheel_separation_multiplier   = wheel_separation_multiplier_;
+
+    dynamic_params.publish_rate = publish_rate;
+    dynamic_params.enable_odom_tf = enable_odom_tf_;
+
+    dynamic_params_.writeFromNonRT(dynamic_params);
+
+    // Initialize dynamic_reconfigure server
+    HuskyPandaControllerConfig config;
+    config.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
+    config.right_wheel_radius_multiplier = right_wheel_radius_multiplier_;
+    config.wheel_separation_multiplier   = wheel_separation_multiplier_;
+
+    config.publish_rate = publish_rate;
+    config.enable_odom_tf = enable_odom_tf_;
+
+    dyn_reconf_server_ = std::make_shared<ReconfigureServer>(dyn_reconf_server_mutex_, controller_nh);
+
+    // Update parameters
+    dyn_reconf_server_mutex_.lock();
+    dyn_reconf_server_->updateConfig(config);
+    dyn_reconf_server_mutex_.unlock();
+
+    dyn_reconf_server_->setCallback(
+        boost::bind(&HuskyPandaController::reconfCallback, this, boost::placeholders::_1, boost::placeholders::_2));
+
+    return true;
+  }
+
+  bool HuskyPandaController::init_parameters(ros::NodeHandle& controller_nh)
+  {
     // Get joint names from the parameter server
     std::vector<std::string> left_wheel_names, right_wheel_names;
     if (!getWheelNames(controller_nh, "left_wheel", left_wheel_names) ||
@@ -263,91 +353,6 @@ namespace husky_panda_controller{
                           "Odometry params : wheel separation " << ws
                           << ", left wheel radius "  << lwr
                           << ", right wheel radius " << rwr);
-
-    if (publish_cmd_)
-    {
-      cmd_vel_pub_.reset(new realtime_tools::RealtimePublisher<geometry_msgs::TwistStamped>(controller_nh, "cmd_vel_out", 100));
-    }
-
-    // Wheel joint controller state:
-    if (publish_wheel_joint_controller_state_)
-    {
-      controller_state_pub_.reset(new realtime_tools::RealtimePublisher<control_msgs::JointTrajectoryControllerState>(controller_nh, "wheel_joint_controller_state", 100));
-
-      const size_t num_wheels = wheel_joints_size_ * 2;
-
-      controller_state_pub_->msg_.joint_names.resize(num_wheels);
-
-      controller_state_pub_->msg_.desired.positions.resize(num_wheels);
-      controller_state_pub_->msg_.desired.velocities.resize(num_wheels);
-      controller_state_pub_->msg_.desired.accelerations.resize(num_wheels);
-      controller_state_pub_->msg_.desired.effort.resize(num_wheels);
-
-      controller_state_pub_->msg_.actual.positions.resize(num_wheels);
-      controller_state_pub_->msg_.actual.velocities.resize(num_wheels);
-      controller_state_pub_->msg_.actual.accelerations.resize(num_wheels);
-      controller_state_pub_->msg_.actual.effort.resize(num_wheels);
-
-      controller_state_pub_->msg_.error.positions.resize(num_wheels);
-      controller_state_pub_->msg_.error.velocities.resize(num_wheels);
-      controller_state_pub_->msg_.error.accelerations.resize(num_wheels);
-      controller_state_pub_->msg_.error.effort.resize(num_wheels);
-
-      for (size_t i = 0; i < wheel_joints_size_; ++i)
-      {
-        controller_state_pub_->msg_.joint_names[i] = left_wheel_names[i];
-        controller_state_pub_->msg_.joint_names[i + wheel_joints_size_] = right_wheel_names[i];
-      }
-
-      vel_left_previous_.resize(wheel_joints_size_, 0.0);
-      vel_right_previous_.resize(wheel_joints_size_, 0.0);
-    }
-
-    setOdomPubFields(root_nh, controller_nh);
-
-    // Get the joint object to use in the realtime loop
-    for (size_t i = 0; i < wheel_joints_size_; ++i)
-    {
-      ROS_INFO_STREAM_NAMED(name_,
-                            "Adding left wheel with joint name: " << left_wheel_names[i]
-                            << " and right wheel with joint name: " << right_wheel_names[i]);
-      left_wheel_joints_[i] = hw->getHandle(left_wheel_names[i]);  // throws on failure
-      right_wheel_joints_[i] = hw->getHandle(right_wheel_names[i]);  // throws on failure
-    }
-
-    sub_command_ = controller_nh.subscribe("cmd_vel", 1, &HuskyPandaController::cmdVelCallback, this);
-
-    // Initialize dynamic parameters
-    DynamicParams dynamic_params;
-    dynamic_params.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
-    dynamic_params.right_wheel_radius_multiplier = right_wheel_radius_multiplier_;
-    dynamic_params.wheel_separation_multiplier   = wheel_separation_multiplier_;
-
-    dynamic_params.publish_rate = publish_rate;
-    dynamic_params.enable_odom_tf = enable_odom_tf_;
-
-    dynamic_params_.writeFromNonRT(dynamic_params);
-
-    // Initialize dynamic_reconfigure server
-    HuskyPandaControllerConfig config;
-    config.left_wheel_radius_multiplier  = left_wheel_radius_multiplier_;
-    config.right_wheel_radius_multiplier = right_wheel_radius_multiplier_;
-    config.wheel_separation_multiplier   = wheel_separation_multiplier_;
-
-    config.publish_rate = publish_rate;
-    config.enable_odom_tf = enable_odom_tf_;
-
-    dyn_reconf_server_ = std::make_shared<ReconfigureServer>(dyn_reconf_server_mutex_, controller_nh);
-
-    // Update parameters
-    dyn_reconf_server_mutex_.lock();
-    dyn_reconf_server_->updateConfig(config);
-    dyn_reconf_server_mutex_.unlock();
-
-    dyn_reconf_server_->setCallback(
-        boost::bind(&HuskyPandaController::reconfCallback, this, boost::placeholders::_1, boost::placeholders::_2));
-
-    return true;
   }
 
   void HuskyPandaController::update(const ros::Time& time, const ros::Duration& period)

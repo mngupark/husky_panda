@@ -7,6 +7,8 @@ project(husky_panda_controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Franka 0.7.0 REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
   effort_controllers
   controller_interface
@@ -19,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   realtime_tools
   tf
   urdf
+  franka_hw
 )
 
 find_package(Boost REQUIRED)
@@ -127,7 +130,7 @@ catkin_package(
     realtime_tools
     tf
   LIBRARIES ${PROJECT_NAME}
-  DEPENDS Boost
+  DEPENDS Boost Franka
 )
 
 
@@ -176,8 +179,14 @@ add_library(husky_panda_controller
 target_link_libraries(husky_panda_hw_interface
   ${catkin_LIBRARIES}
 )
+target_include_directories(husky_panda_controller
+  PUBLIC
+  ${catkin_INCLUDE_DIRS}
+  ${Franka_INCLUDE_DIRS}
+)
 target_link_libraries(husky_panda_controller
   ${catkin_LIBRARIES}
+  ${Franka_LIBRARIES}
 )
 add_dependencies(husky_panda_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 

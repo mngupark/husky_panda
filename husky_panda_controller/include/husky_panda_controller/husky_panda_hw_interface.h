@@ -8,7 +8,7 @@
 #include "hardware_interface/joint_command_interface.h"
 #include "controller_manager/controller_manager.h"
 
-namespace HuskyPandaWholeBodyController
+namespace husky_panda_controller
 {
     class HuskyPandaHW : public hardware_interface::RobotHW
     {
@@ -42,4 +42,4 @@ namespace HuskyPandaWholeBodyController
 
         ~HuskyPandaHW();
     };
-} // namespace HuskyPandaWholeBodyController
+} // namespace husky_panda_controller

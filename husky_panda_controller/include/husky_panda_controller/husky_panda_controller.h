@@ -1,19 +1,30 @@
 #pragma once
 
-
-#include <control_msgs/JointTrajectoryControllerState.h>
-#include <controller_interface/controller.h>
-#include <husky_panda_controller/HuskyPandaControllerConfig.h>
-#include <husky_panda_controller/odometry.h>
-#include <husky_panda_controller/speed_limiter.h>
-#include <dynamic_reconfigure/server.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <hardware_interface/joint_command_interface.h>
+// C++ STL
 #include <memory>
-#include <nav_msgs/Odometry.h>
+
+// ROS packages
+#include <controller_interface/multi_interface_controller.h>
+#include <hardware_interface/joint_command_interface.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_publisher.h>
+#include <franka_hw/franka_cartesian_command_interface.h>
+#include <franka_hw/franka_model_interface.h>
+#include <franka_hw/trigger_rate.h>
+
+// ROS messages
+#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 #include <tf/tfMessage.h>
+
+// Dynamic reconfigure
+#include <dynamic_reconfigure/server.h>
+#include <husky_panda_controller/HuskyPandaControllerConfig.h>
+
+// Custom headers
+#include <husky_panda_controller/odometry.h>
+#include <husky_panda_controller/speed_limiter.h>
 
 namespace husky_panda_controller{
 
@@ -27,7 +38,11 @@ namespace husky_panda_controller{
    *  - a wheel joint frame center's vertical projection on the floor must lie within the contact patch
    */
   class HuskyPandaController
-      : public controller_interface::Controller<hardware_interface::VelocityJointInterface>
+      : public controller_interface::MultiInterfaceController<
+          hardware_interface::VelocityJointInterface,
+          hardware_interface::EffortJointInterface,
+          franka_hw::FrankaModelInterface,
+          franka_hw::FrankaStateInterface>
   {
   public:
     HuskyPandaController();
@@ -38,28 +53,35 @@ namespace husky_panda_controller{
      * \param root_nh       Node handle at root namespace
      * \param controller_nh Node handle inside the controller namespace
      */
-    bool init(hardware_interface::VelocityJointInterface* hw,
+    bool init(hardware_interface::RobotHW* hw,
               ros::NodeHandle& root_nh,
-              ros::NodeHandle &controller_nh);
+              ros::NodeHandle &controller_nh) override;
+
+    /**
+     * @brief Initialize parameters
+     * 
+     * @param controller_nh Node handle inside the controller namespace
+     */
+    bool init_parameters(ros::NodeHandle& controller_nh);
 
     /**
      * \brief Updates controller, i.e. computes the odometry and sets the new velocity commands
      * \param time   Current time
      * \param period Time since the last called to update
      */
-    void update(const ros::Time& time, const ros::Duration& period);
+    void update(const ros::Time& time, const ros::Duration& period) override;
 
     /**
      * \brief Starts controller
      * \param time Current time
      */
-    void starting(const ros::Time& time);
+    void starting(const ros::Time& time) override;
 
     /**
      * \brief Stops controller
      * \param time Current time
      */
-    void stopping(const ros::Time& /*time*/);
+    void stopping(const ros::Time& /*time*/) override;
 
   private:
     std::string name_;
@@ -70,8 +92,10 @@ namespace husky_panda_controller{
     bool open_loop_;
 
     /// Hardware handles:
-    std::vector<hardware_interface::JointHandle> left_wheel_joints_;
-    std::vector<hardware_interface::JointHandle> right_wheel_joints_;
+    std::vector<hardware_interface::JointHandle> base_joint_handles_;
+    std::vector<hardware_interface::JointHandle> arm_joint_handles_;
+    std::unique_ptr<franka_hw::FrankaStateHandle> state_handles_;
+    std::unique_ptr<franka_hw::FrankaModelHandle> model_handles_;
 
     // Previous time
     ros::Time time_previous_;
