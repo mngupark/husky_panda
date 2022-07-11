@@ -1,18 +1,18 @@
 <launch>
-    <arg name="front_scan_topic" default="/sick_scan"/>
-    <arg name="front_cloud_topic" default="/sick_cloud"/>
-    <arg name="front_scan_frame_id" default="laser" />
+    <arg name="front_scan_topic" default="/front_scan"/>
+    <arg name="front_cloud_topic" default="/front_cloud"/>
+    <arg name="front_scan_frame_id" default="front_laser" />
 
-    <arg name="rear_scan_topic" default="/hokuyo_scan"/>
-    <arg name="rear_cloud_topic" default="/hokuyo_cloud"/>
-    <arg name="rear_scan_frame_id" default="hokuyo_laser" />
+    <arg name="rear_scan_topic" default="/rear_scan"/>
+    <arg name="rear_cloud_topic" default="/rear_cloud"/>
+    <arg name="rear_scan_frame_id" default="rear_laser" />
 
     <arg name="fake_scan_topic" default="/fake_scan" />
     <arg name="fake_cloud_topic" default="/fake_cloud" />
     <arg name="fake_scan_mount_frame_id" default="top_plate_link" />
     <arg name="fake_scan_frame_id" default="fake_laser" />
 
-    <node name="husky_panda_scan" pkg="husky_panda_slam_toolbox" type="husky_panda_scan" output="screen" >
+    <node name="husky_panda_scan" pkg="husky_panda_slam_toolbox" type="husky_panda_scan_node" output="screen" >
         <param name="front_scan_topic" value="$(arg front_scan_topic)"/>
         <param name="front_cloud_topic" value="$(arg front_cloud_topic)"/>
         <param name="front_scan_frame_id" value="$(arg front_scan_frame_id)" />
