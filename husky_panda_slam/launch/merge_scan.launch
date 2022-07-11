@@ -1,0 +1,35 @@
+<launch>
+    <arg name="front_scan_topic" default="/front_scan"/>
+    <arg name="front_cloud_topic" default="/front_cloud"/>
+    <arg name="front_scan_frame_id" default="front_laser" />
+
+    <arg name="rear_scan_topic" default="/rear_scan"/>
+    <arg name="rear_cloud_topic" default="/rear_cloud"/>
+    <arg name="rear_scan_frame_id" default="rear_laser" />
+
+    <arg name="fake_scan_topic" default="/fake_scan" />
+    <arg name="fake_cloud_topic" default="/fake_cloud" />
+    <arg name="fake_scan_mount_frame_id" default="top_plate_link" />
+    <arg name="fake_scan_frame_id" default="fake_laser" />
+
+    <node name="husky_panda_scan" pkg="husky_panda_slam" type="husky_panda_scan_node" output="screen" >
+        <param name="front_scan_topic" value="$(arg front_scan_topic)"/>
+        <param name="front_cloud_topic" value="$(arg front_cloud_topic)"/>
+        <param name="front_scan_frame_id" value="$(arg front_scan_frame_id)" />
+
+        <param name="rear_scan_topic" value="$(arg rear_scan_topic)"/>
+        <param name="rear_cloud_topic" value="$(arg rear_cloud_topic)"/>
+        <param name="rear_scan_frame_id" value="$(arg rear_scan_frame_id)" />
+
+        <param name="fake_scan_topic" value="$(arg fake_scan_topic)" />
+        <param name="fake_cloud_topic" value="$(arg fake_cloud_topic)" />
+        <param name="fake_scan_mount_frame_id" value="$(arg fake_scan_mount_frame_id)" />
+        <param name="fake_scan_frame_id" value="$(arg fake_scan_frame_id)" />
+    </node>
+
+    <node name="pointcloud_to_laserscan_node" pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" output="screen">
+        <remap from="cloud_in" to="$(arg fake_cloud_topic)"/>
+        <remap from="scan" to="$(arg fake_scan_topic)"/>
+    </node>
+
+</launch>
