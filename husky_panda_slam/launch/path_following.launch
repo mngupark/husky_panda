@@ -4,7 +4,7 @@
     <arg name="base_frame" default="base_footprint" />
     <arg name="path_publish_topic_name" default="/following_path" />
 
-    <node name="husky_panda_path" pkg="husky_panda_slam" type="husky_panda_path" output="screen">
+    <node name="husky_panda_path" pkg="husky_panda_slam" type="husky_panda_path_node" output="screen">
         <param name="map_frame" value="$(arg map_frame)" />
         <param name="odom_frame" value="$(arg odom_frame)" />
         <param name="base_frame" value="$(arg base_frame)" />
