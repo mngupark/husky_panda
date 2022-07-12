@@ -5,11 +5,10 @@ HuksyPandaMapConverter::HuksyPandaMapConverter()
     char * home_path = std::getenv("HOME");
     file_name_ = std::string(home_path) + "/door_env.cfg";
     initialize_map_configure(file_name_.c_str());
-    is_map_generated_ = false;
     ros::NodeHandle nh("~");
     map_sub_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/map", 10, &HuksyPandaMapConverter::map_callback, this);
 
-    loop();
+    ros::spin();
 }
 
 HuksyPandaMapConverter::~HuksyPandaMapConverter()
@@ -40,36 +39,25 @@ void HuksyPandaMapConverter::initialize_map_configure(const char * file_name)
 
 void HuksyPandaMapConverter::generate_map(const nav_msgs::OccupancyGrid::ConstPtr & map, const char * file_name)
 {
-    if (is_map_generated_ == false)
+    map_fd_ = open(file_name, O_APPEND | O_WRONLY, 0644);
+    std::cout << "width: " << map->info.width << "\theight: " << map->info.height << '\n';
+    std::cout << "origin: " << map->info.origin.position.x << ", " << map->info.origin.position.y << ", " << map->info.origin.position.z << '\n';
+    std::cout << "resolution: " << map->info.resolution << '\n';
+    char buf[map->info.width * map->info.height];
+    char buf_ptr[256];
+    for (auto i = 0; i < map->info.width; i++)
     {
-        map_fd_ = open(file_name, O_APPEND | O_WRONLY, 0644);
-        std::cout << "width: " << map->info.width << "\theight: " << map->info.height << '\n';
-        char buf[map->info.width * map->info.height];
-        char buf_ptr[256];
-        for (auto i = 0; i < map->info.width; i++)
+        for (auto j = 0; j < map->info.height; j++)
         {
-            for (auto j = 0; j < map->info.height; j++)
-            {
-                
-                int num = (unsigned char)map->data[i * map->info.width + j];
-                sprintf(buf_ptr, "%d ", num);
-                write(map_fd_, buf_ptr, strlen(buf_ptr));
-                std::cout << buf_ptr << '\n';
 
-            }
+            int num = (unsigned char)map->data[i * map->info.width + j];
+            sprintf(buf_ptr, "%3d ", num);
+            write(map_fd_, buf_ptr, strlen(buf_ptr));
         }
-        // write(map_fd_, buf, strlen(buf));
-        close(map_fd_);
-        is_map_generated_ = true;
+        strcpy(buf_ptr, "\n");
+        write(map_fd_, buf_ptr, strlen(buf_ptr));
     }
-    return;
-}
-
-void HuksyPandaMapConverter::loop()
-{
-    while(ros::ok())
-    {
-        ros::spinOnce();
-    }
+    close(map_fd_);
+    ros::shutdown(); // create an environment file only once
     return;
 }

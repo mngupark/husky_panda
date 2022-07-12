@@ -22,12 +22,10 @@ private:
     void map_callback(const nav_msgs::OccupancyGrid::ConstPtr & map);
     void initialize_map_configure(const char * file_name);
     void generate_map(const nav_msgs::OccupancyGrid::ConstPtr & map, const char * file_name);
-    void loop();
 
     ros::Subscriber map_sub_;
 
     int map_fd_;
-    bool is_map_generated_;
     std::string file_name_;
 
 public:
