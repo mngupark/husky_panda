@@ -143,7 +143,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(husky_panda_scan_node src/husky_panda_scan_node.cpp src/husky_panda_scan.cpp)
 add_executable(husky_panda_path_node src/husky_panda_path.cpp)
-
+add_executable(husky_panda_map_conversion_node src/husky_panda_map_conversion_node.cpp src/husky_panda_map_conversion.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -163,6 +163,10 @@ target_link_libraries(husky_panda_scan_node
 )
 
 target_link_libraries(husky_panda_path_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(husky_panda_map_conversion_node
   ${catkin_LIBRARIES}
 )
 
