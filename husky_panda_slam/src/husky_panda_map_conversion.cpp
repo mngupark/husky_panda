@@ -47,6 +47,11 @@ void HuksyPandaMapConverter::generate_map(const nav_msgs::OccupancyGrid::ConstPt
     std::cout << "origin: " << map->info.origin.position.x << ", " << map->info.origin.position.y << ", " << map->info.origin.position.z << '\n';
     std::cout << "resolution: " << map->info.resolution << '\n';
 
+    // the origin of map = the origin of the robot calculated from lower-left pose of the map
+    float yaw = atan2(2.0 * 
+        (map->info.origin.orientation.y * map->info.origin.orientation.z + map->info.origin.orientation.w * map->info.origin.orientation.x),
+         map->info.origin.orientation.w * map->info.origin.orientation.w - map->info.origin.orientation.x * map->info.origin.orientation.x
+         - map->info.origin.orientation.y * map->info.origin.orientation.y + map->info.origin.orientation.z * map->info.origin.orientation.z);
     char info_buf[256];
     sprintf(info_buf, 
         "discretization(cells): %d %d\n"
@@ -54,11 +59,11 @@ void HuksyPandaMapConverter::generate_map(const nav_msgs::OccupancyGrid::ConstPt
         "nominalvel(mpersecs): 0.4\n"
         "timetoturn45degsinplace(secs): 5.0\n"
         "start(meters,rads): %f %f %f 0\n"
-        "end(meters,rads): 1.7 1.7 0 1\n"
+        "end(meters,rads): 1.7 1.7 0 4\n"
         "environment:\n",
         map->info.width, map->info.height,
         map->info.resolution,
-        map->info.origin.position.x, map->info.origin.position.y, map->info.origin.position.z
+        -map->info.origin.position.x, -map->info.origin.position.y, yaw
     );
     write(map_fd_, info_buf, strlen(info_buf));
 
