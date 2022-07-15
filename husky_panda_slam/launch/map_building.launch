@@ -1,7 +1,36 @@
 <launch>
-    <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
-        <rosparam command="load" file="$(find husky_panda_slam)/config/slam_toolbox/mapper_params_online_async.yaml" />
-    </node>
+    <arg name="slam_algorithm" default="slam_toolbox" doc="slam algorithm type [slam_toolbox, cartographer, gmapping]"/>
+    <arg name="gazebo" default="true" />
+    
+    <arg name="cartographer_config" default="cartographer_config_gazebo.lua" if="$(arg gazebo)"/>
+    <arg name="cartographer_config" default="cartographer_config.lua" unless="$(arg gazebo)"/>
+
+    <group if="$(eval slam_algorithm == 'slam_toolbox')">
+        <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+            <rosparam command="load" file="$(find husky_panda_slam)/config/$(arg slam_algorithm)/mapper_params_online_async.yaml" />
+        </node>
+    </group>
+
+    <group if="$(eval slam_algorithm == 'cartographer')">
+        <!-- cartographer_node -->
+        <node pkg="cartographer_ros" type="cartographer_node" name="cartographer_node" args="-configuration_directory $(find husky_panda_slam)/config/$(arg slam_algorithm)
+    -configuration_basename $(arg cartographer_config)" output="screen">
+            <remap from="/scan_1" to="/front_scan" />
+            <remap from="/scan_2" to="/rear_scan" />
+            <remap from="/imu" to="/imu/data" />
+            <remap from="/odom" to="/odometry/filtered" />
+        </node>
+
+        <!-- cartographer_occupancy_grid_node -->
+        <node pkg="cartographer_ros" type="cartographer_occupancy_grid_node" name="cartographer_occupancy_grid_node" args="-resolution 0.025" />
+    </group>
+
+    <group if="$(eval slam_algorithm == 'gmapping')">
+        <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
+            <rosparam command="load" file="$(find husky_panda_slam)/config/$(arg slam_algorithm)/gmapping_config.cfg" />
+            <remap from="/scan" to="/fake_scan"/>
+          </node>
+    </group>
 
     <!-- <include file="$(find husky_panda_slam)/launch/path_following.launch" /> -->
 
