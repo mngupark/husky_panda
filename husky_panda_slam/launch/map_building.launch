@@ -9,6 +9,7 @@
         <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
             <rosparam command="load" file="$(find husky_panda_slam)/config/$(arg slam_algorithm)/mapper_params_online_async.yaml" />
         </node>
+        <include file="$(find husky_panda_slam)/launch/merge_scan.launch" />
     </group>
 
     <group if="$(eval slam_algorithm == 'cartographer')">
@@ -29,7 +30,8 @@
         <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping">
             <rosparam command="load" file="$(find husky_panda_slam)/config/$(arg slam_algorithm)/gmapping_config.cfg" />
             <remap from="/scan" to="/fake_scan"/>
-          </node>
+        </node>
+        <include file="$(find husky_panda_slam)/launch/merge_scan.launch" />
     </group>
 
     <!-- <include file="$(find husky_panda_slam)/launch/path_following.launch" /> -->
