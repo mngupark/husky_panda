@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot name="husky_panda" xmlns:xacro="http://ros.org/wiki/xacro">
+    <xacro:arg name="robot_namespace" default="/" />
+    <xacro:arg name="single_arm" default="true"/>
+
+    <xacro:arg name="arm_id" default="panda" />
+    <!-- Should a franka_gripper be mounted at the flange?" -->
+    <xacro:arg name="hand" default="true" />
+    <!-- Is the robot being simulated in gazebo?" -->
+    <xacro:arg name="gazebo" default="true" />
+    <xacro:arg name="connected_to" default=" "/>
+
+    <xacro:include filename="$(find husky_panda_description)/urdf/husky.urdf.xacro"/>
+    <xacro:include filename="$(find husky_panda_description)/urdf/panda_arm.urdf.xacro"/>
+
+    <xacro:if value="$(arg single_arm)">
+
+    </xacro:if>
+    <xacro:unless value="$(arg single_arm)">
+
+    </xacro:unless>
+</robot>

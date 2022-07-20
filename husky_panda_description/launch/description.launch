@@ -1,0 +1,16 @@
+<launch>
+    <arg name="robot_namespace" default="/"/>
+    <arg name="visualize_only" default="false"/>
+    <arg name="single_arm" default="true"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro '$(find husky_panda_description)/urdf/husky_panda.urdf.xacro'
+        robot_namespace:=$(arg robot_namespace)
+        single_arm:=$(arg single_arm)" />
+
+    <!-- Visualize the robot model -->
+    <group ns="visualize" if="$(arg visualize_only)">
+        <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" />
+        <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher" />
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find husky_panda_description)/rviz/husky_panda.rviz" output="screen"/>
+    </group>
+</launch>
