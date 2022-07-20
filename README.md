@@ -1,6 +1,6 @@
 # husky_panda
 
-## husky_panda_controller
+## husky_panda_control
 ***On progressing...***
 
 ## husky_panda_description
