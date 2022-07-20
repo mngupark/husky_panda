@@ -146,14 +146,16 @@ include_directories(
   include ${Boost_INCLUDE_DIRS}
 )
 ## Declare a C++ library
-add_library(husky_panda_hw_interface
-  src/husky_panda_hw_interface.cpp
-)
-add_library(husky_panda_controller
-  src/husky_panda_controller.cpp
-  src/odometry.cpp
-  src/speed_limiter.cpp
-)
+#################################################
+# # add_library(husky_panda_hw_interface
+# #   src/husky_panda_hw_interface.cpp
+# # )
+# # add_library(husky_panda_controller
+# #   src/husky_panda_controller.cpp
+# #   src/odometry.cpp
+# #   src/speed_limiter.cpp
+# # )
+#################################################
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -176,40 +178,44 @@ add_library(husky_panda_controller
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(husky_panda_hw_interface
-  ${catkin_LIBRARIES}
-)
-target_include_directories(husky_panda_controller
-  PUBLIC
-  ${catkin_INCLUDE_DIRS}
-  ${Franka_INCLUDE_DIRS}
-)
-target_link_libraries(husky_panda_controller
-  ${catkin_LIBRARIES}
-  ${Franka_LIBRARIES}
-)
-add_dependencies(husky_panda_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+#################################################
+# # target_link_libraries(husky_panda_hw_interface
+# #   ${catkin_LIBRARIES}
+# # )
+# # target_include_directories(husky_panda_controller
+# #   PUBLIC
+# #   ${catkin_INCLUDE_DIRS}
+# #   ${Franka_INCLUDE_DIRS}
+# # )
+# # target_link_libraries(husky_panda_controller
+# #   ${catkin_LIBRARIES}
+# #   ${Franka_LIBRARIES}
+# # )
+# # add_dependencies(husky_panda_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+#################################################
 
 #############
 ## Install ##
 #############
 
 # Install headers
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
+#################################################
+# install(DIRECTORY include/${PROJECT_NAME}/
+#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+# )
 
-# Install library
-install(TARGETS husky_panda_controller
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-)
+# # Install library
+# install(TARGETS husky_panda_controller
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+# )
 
-# Install plugins
-install(FILES husky_panda_controller_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+# # Install plugins
+# install(FILES husky_panda_controller_plugins.xml
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+# )
+#################################################
 
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
