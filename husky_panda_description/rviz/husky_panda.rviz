@@ -62,6 +62,163 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: ""
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fake_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_bumper_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser_mount_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        inertial_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        panda_hand:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_leftfinger:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link6:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link7:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda_link8:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        panda_rightfinger:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_bumper_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_laser_mount_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        top_chassis_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        top_plate_front_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        top_plate_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        top_plate_rear_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        top_structure:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        user_rail_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -73,20 +230,93 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_footprint:
+          Value: true
+        base_link:
+          Value: true
+        fake_laser:
+          Value: true
+        front_bumper_link:
+          Value: true
+        front_laser:
+          Value: true
+        front_laser_mount_link:
+          Value: true
+        imu_link:
+          Value: true
+        inertial_link:
+          Value: true
+        panda_hand:
+          Value: true
+        panda_link0:
+          Value: true
+        panda_link7:
+          Value: true
+        panda_link8:
+          Value: true
+        rear_bumper_link:
+          Value: true
+        rear_laser:
+          Value: true
+        rear_laser_mount_link:
+          Value: true
+        top_chassis_link:
+          Value: true
+        top_plate_front_link:
+          Value: true
+        top_plate_link:
+          Value: true
+        top_plate_rear_link:
+          Value: true
+        top_structure:
+          Value: true
+        user_rail_link:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        base_link:
+          base_footprint:
+            {}
+          front_bumper_link:
+            {}
+          imu_link:
+            {}
+          inertial_link:
+            {}
+          rear_bumper_link:
+            {}
+          top_chassis_link:
+            {}
+          top_plate_link:
+            fake_laser:
+              {}
+            front_laser_mount_link:
+              front_laser:
+                {}
+            panda_link0:
+              {}
+            rear_laser_mount_link:
+              rear_laser:
+                {}
+            top_plate_front_link:
+              {}
+            top_plate_rear_link:
+              {}
+          top_structure:
+            {}
+          user_rail_link:
+            {}
       Update Interval: 0
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -110,7 +340,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10
+      Distance: 4.086756229400635
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -125,10 +355,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.785398006439209
+      Pitch: 0.7303980588912964
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.785398006439209
+      Yaw: 0.7053980827331543
     Saved: ~
 Window Geometry:
   Displays:
@@ -147,4 +377,4 @@ Window Geometry:
     collapsed: false
   Width: 1267
   X: 67
-  Y: 30
+  Y: 27

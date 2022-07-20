@@ -3,20 +3,29 @@
     <xacro:arg name="robot_namespace" default="/" />
     <xacro:arg name="single_arm" default="true"/>
 
-    <xacro:arg name="arm_id" default="panda" />
-    <!-- Should a franka_gripper be mounted at the flange?" -->
-    <xacro:arg name="hand" default="true" />
     <!-- Is the robot being simulated in gazebo?" -->
-    <xacro:arg name="gazebo" default="true" />
+    <xacro:arg name="gazebo" default="false" />
     <xacro:arg name="connected_to" default=" "/>
+
+    <xacro:arg name="x"     default="0"/>
+    <xacro:arg name="y"     default="0"/>
+    <xacro:arg name="z"     default="0"/>
+    <xacro:arg name="roll"  default="0"/>
+    <xacro:arg name="pitch" default="0"/>
+    <xacro:arg name="yaw"   default="0"/>
 
     <xacro:include filename="$(find husky_panda_description)/urdf/husky.urdf.xacro"/>
     <xacro:include filename="$(find husky_panda_description)/urdf/panda_arm.urdf.xacro"/>
 
     <xacro:if value="$(arg single_arm)">
-
+        <xacro:arg name="arm_id" default="panda" />
+        <xacro:panda arm_id="$(arg arm_id)" gazebo="$(arg gazebo)" connected_to="$(arg connected_to)" x="$(arg x)" y="$(arg y)" z="$(arg z)" roll="$(arg roll)" pitch="$(arg pitch)" yaw="$(arg yaw)">
+        </xacro:panda>
     </xacro:if>
     <xacro:unless value="$(arg single_arm)">
-
+        <xacro:arg name="arm_id_1" default="panda_1" />
+        <xacro:arg name="arm_id_2" default="panda_2" />
+        <xacro:panda arm_id="$(arg arm_id_1)" gazebo="$(arg gazebo)" connected_to="$(arg connected_to)" x="$(arg x)" y="$(arg y)" z="$(arg z)" roll="$(arg roll)" pitch="$(arg pitch)" yaw="$(arg yaw)"/>
+        <xacro:panda arm_id="$(arg arm_id_2)" gazebo="$(arg gazebo)" connected_to="$(arg connected_to)" x="$(arg x)" y="-$(arg y)" z="$(arg z)" roll="$(arg roll)" pitch="$(arg pitch)" yaw="$(arg yaw)"/>
     </xacro:unless>
 </robot>

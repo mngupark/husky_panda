@@ -38,7 +38,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <xacro:property name="husky_rear_bumper_extend" value="$(optenv HUSKY_REAR_BUMPER_EXTEND 0)" />
 
   <xacro:arg name="robot_namespace" default="/" />
-  <xacro:arg name="urdf_extras" default="empty.urdf" />
 
   <!-- Included URDF/XACRO Files -->
   <xacro:include filename="$(find husky_description)/urdf/decorations.urdf.xacro" />
@@ -213,8 +212,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   </gazebo>
 
   <!-- Optional custom includes. -->
-  <xacro:include filename="$(arg urdf_extras)" />
-
   <xacro:include filename="$(find roas_bringup)/urdf/roas.urdf.xacro"/>
 
 </robot>
