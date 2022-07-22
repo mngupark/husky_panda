@@ -1,0 +1,2 @@
+source_list:
+  - [franka_state_controller/joint_states, franka_gripper/joint_states]

@@ -129,7 +129,7 @@ catkin_package(
     nav_msgs
     realtime_tools
     tf
-  LIBRARIES ${PROJECT_NAME}
+  LIBRARIES husky_panda_controller #${PROJECT_NAME}
   DEPENDS Boost Franka
 )
 
