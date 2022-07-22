@@ -2,7 +2,7 @@
     <arg name="robot_namespace" default="/"/>
     <arg name="visualize_only" default="false"/>
     <arg name="single_arm" default="true"/>
-    <arg name="gazebo" default="true"/>
+    <arg name="gazebo" default="false"/>
     <arg name="connected_to" default="top_plate_link"/>
     <arg name="x"       default="0.15"/>
     <arg name="y"       default="0.0" if="$(arg single_arm)"/>

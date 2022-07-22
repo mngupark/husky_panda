@@ -13,14 +13,13 @@
     <xacro:arg name="roll"  default="0"/>
     <xacro:arg name="pitch" default="0"/>
     <xacro:arg name="yaw"   default="0"/>
-
+    
     <xacro:include filename="$(find husky_panda_description)/urdf/husky.urdf.xacro"/>
     <xacro:include filename="$(find husky_panda_description)/urdf/panda_arm.urdf.xacro"/>
 
     <xacro:if value="$(arg single_arm)">
         <xacro:arg name="arm_id" default="panda" />
-        <xacro:panda arm_id="$(arg arm_id)" gazebo="$(arg gazebo)" connected_to="$(arg connected_to)" x="$(arg x)" y="$(arg y)" z="$(arg z)" roll="$(arg roll)" pitch="$(arg pitch)" yaw="$(arg yaw)">
-        </xacro:panda>
+        <xacro:panda arm_id="$(arg arm_id)" gazebo="$(arg gazebo)" connected_to="$(arg connected_to)" x="$(arg x)" y="$(arg y)" z="$(arg z)" roll="$(arg roll)" pitch="$(arg pitch)" yaw="$(arg yaw)"/>
     </xacro:if>
     <xacro:unless value="$(arg single_arm)">
         <xacro:arg name="arm_id_1" default="panda_1" />
