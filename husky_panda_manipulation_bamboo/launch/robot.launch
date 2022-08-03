@@ -8,7 +8,7 @@
         <arg name="debug" value="false"/>
         <arg name="object" value="$(arg object)"/>
         <arg name="load_simulation_object" value="true"/>
-        <!-- <arg name="wrench_sensor" value="true"/> -->
+        <arg name="wrench_sensor" value="true"/>
     </include>
 
     <!-- Controller configuration -->
@@ -31,10 +31,6 @@
         <param name="robot_ip" value="$(arg robot_ip)" />
     </node>
 
-    <!-- Husky control node and state controller -->
-    <include file="$(find husky_panda_manipulation_bamboo)/launch/husky_control.launch" />
-    <include file="$(find husky_panda_manipulation_bamboo)/launch/husky_teleop.launch" />
-
-   <rosparam command="load" file="$(find husky_panda_manipulation_bamboo)/config/franka_state_controller.yaml" />
+    <rosparam command="load" file="$(find husky_panda_manipulation_bamboo)/config/franka_state_controller.yaml" />
     <node name="state_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="franka_state_controller"/>
 </launch>

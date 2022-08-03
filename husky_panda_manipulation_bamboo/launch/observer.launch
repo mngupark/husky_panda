@@ -2,12 +2,12 @@
 <launch>
 
     <arg name="simulation" default="false"/>
-    <arg name="use_base_odometry" default="true"/>
+    <arg name="use_base_odometry" default="false"/>
     <arg name="debug" default="false"/>
 
     <arg name="base_odometry_topic" default="/panda_base/vrpn_client/estimated_odometry" 
         unless="$(arg use_base_odometry)"/>
-    <arg name="base_odometry_topic" default="/odometry/filtered" 
+    <arg name="base_odometry_topic" default="/husky_velocity_controller/odom" 
         if="$(arg use_base_odometry)"/>
     
     <node pkg="husky_panda_manipulation_bamboo" type="fake_object_odometry_publisher.py" name="fake_object_odometry_publisher" output="screen" if="$(arg debug)"/>
