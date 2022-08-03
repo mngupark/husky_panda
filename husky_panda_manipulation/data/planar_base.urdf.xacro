@@ -16,7 +16,7 @@
 
 
     <xacro:macro name="planar_base" params="connect_to">
-        <link name="omni_base_root_link"/>
+        <link name="husky_base_root_link"/>
         <link name="x_slider">
             <inertial>
                 <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
@@ -40,7 +40,7 @@
         </link>
 
         <joint name="x_base_joint" type="prismatic">
-            <parent link="omni_base_root_link"/>
+            <parent link="husky_base_root_link"/>
             <child link="x_slider"/>
             <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
             <axis xyz="1 0 0"/>
@@ -69,7 +69,7 @@
         </joint>
         <xacro:add_transmission joint_name="pivot_joint"/>
 
-        <joint name="omni_base_flange" type="fixed">
+        <joint name="husky_base_flange" type="fixed">
             <parent link="pivot"/>
             <child link="${connect_to}"/>
         </joint>

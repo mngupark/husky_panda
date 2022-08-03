@@ -2,7 +2,7 @@
 <launch>
     <arg name="debug" default="false"/>
     <arg name="object" default="door"/>
-    <arg name="description_file" default="$(find husky_panda_manipulation)/data/panda_mobile.urdf.xacro"/>
+    <arg name="description_file" default="$(find husky_panda_manipulation)/data/husky_panda_mobile.urdf.xacro"/>
     <arg name="object_height" default="1.0"/>
     <arg name="load_simulation_object" default="true"/>
 
@@ -24,7 +24,7 @@
       fixed_base:=true"/>
 
     <param name="robot_description_raisim" command="$(find xacro)/xacro $(arg description_file)
-      ridgeback_resources_prefix:='$(find husky_panda_manipulation)/data/meshes/ridgeback/meshes'
+      husky_resources_prefix:='$(find husky_panda_manipulation)/data/meshes/husky'
       collision_links:=false
       collision_hand:=true
       collision_finger:=true

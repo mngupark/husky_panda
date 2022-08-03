@@ -2,7 +2,7 @@
 <launch>
     <arg name="fixed_base" default="false"/>
     <param name="robot_description_ogre" command="$(find xacro)/xacro $(find husky_panda_manipulation)/data/panda_mobile.urdf.xacro
-      ridgeback_resources_prefix:='$(find ridgeback_description)'
+      husky_resources_prefix:='$(find husky_description)'
       collision_links:=false
       collision_hand:=true
       collision_finger:=true

@@ -24,7 +24,7 @@
         <xacro:panda_robot parent_link="world"/>
     </xacro:if>
 
-    <!-- Add a omnidirectional base to the robot -->
+    <!-- Add a mobile base to the robot -->
     <xacro:unless value="${fixed_base}">
         <link name="world"/>
         <link name="odom"/>
