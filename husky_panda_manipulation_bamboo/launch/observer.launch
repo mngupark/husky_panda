@@ -2,12 +2,12 @@
 <launch>
 
     <arg name="simulation" default="false"/>
-    <arg name="use_base_odometry" default="false"/>
+    <arg name="use_base_odometry" default="true"/>
     <arg name="debug" default="false"/>
 
     <arg name="base_odometry_topic" default="/panda_base/vrpn_client/estimated_odometry" 
         unless="$(arg use_base_odometry)"/>
-    <arg name="base_odometry_topic" default="/ridgeback_velocity_controller/odom" 
+    <arg name="base_odometry_topic" default="/odometry/filtered" 
         if="$(arg use_base_odometry)"/>
     
     <node pkg="husky_panda_manipulation_bamboo" type="fake_object_odometry_publisher.py" name="fake_object_odometry_publisher" output="screen" if="$(arg debug)"/>
@@ -59,7 +59,7 @@
         <param name="simulation" value="$(arg simulation)"/>
         <param name="base_alpha" value="0.7"/>
         <param name="base_pose_topic" value="$(arg base_odometry_topic)"/>
-        <param name="base_twist_topic" value="/ridgeback_velocity_controller/odom"/>
+        <param name="base_twist_topic" value="/husky_velocity_controller/odom"/>
         <param name="object_pose_topic" value="/shelf_door/vrpn_client/estimated_odometry"/>
         <param name="arm_state_topic" value="/panda/joint_states"/>
         <param name="object_state_topic" value="/simulation/object_state"/> <!-- only in sim -->
