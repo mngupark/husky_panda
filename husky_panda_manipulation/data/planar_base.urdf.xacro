@@ -72,6 +72,7 @@
         <joint name="husky_base_flange" type="fixed">
             <parent link="pivot"/>
             <child link="${connect_to}"/>
+            <origin xyz="0 0 0.13228" rpy="0 0 0" />
         </joint>
     </xacro:macro>
 </xacro:robot>
