@@ -69,7 +69,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
   <!-- Included URDF/XACRO Files -->
   <xacro:include filename="$(find husky_panda_manipulation)/data/decorations.urdf.xacro" />
-  <!-- <xacro:include filename="$(find husky_panda_manipulation)/data/wheel.urdf.xacro" /> -->
+  <xacro:include filename="$(find husky_panda_manipulation)/data/wheel.urdf.xacro" />
 
   <xacro:include filename="$(find husky_panda_manipulation)/data/accessories/intel_realsense.urdf.xacro"/>
   <xacro:include filename="$(find husky_panda_manipulation)/data/accessories/sick_lms1xx_mount.urdf.xacro"/>
@@ -151,7 +151,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   </gazebo>
 
   <!-- Husky wheel macros -->
-  <!-- <xacro:husky_wheel wheel_prefix="front_left">
+  <xacro:husky_wheel wheel_prefix="front_left">
     <origin xyz="${wheelbase/2} ${track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:husky_wheel>
   <xacro:husky_wheel wheel_prefix="front_right">
@@ -162,7 +162,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   </xacro:husky_wheel>
   <xacro:husky_wheel wheel_prefix="rear_right">
     <origin xyz="${-wheelbase/2} ${-track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
-  </xacro:husky_wheel> -->
+  </xacro:husky_wheel>
 
   <xacro:husky_decorate />
 
