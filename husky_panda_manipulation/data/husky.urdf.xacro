@@ -66,6 +66,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <xacro:arg name="robot_namespace" default="$(optenv ROBOT_NAMESPACE /)" />
   <xacro:arg name="urdf_extras" default="$(optenv HUSKY_URDF_EXTRAS empty.urdf)" />
   <xacro:arg name="cpr_urdf_extras" default="$(optenv CPR_URDF_EXTRAS empty.urdf)" />
+  <xacro:property name="fixed_wheel" default="${False}" />
 
   <!-- Included URDF/XACRO Files -->
   <xacro:include filename="$(find husky_panda_manipulation)/data/decorations.urdf.xacro" />
@@ -151,16 +152,16 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   </gazebo>
 
   <!-- Husky wheel macros -->
-  <xacro:husky_wheel wheel_prefix="front_left">
+  <xacro:husky_wheel wheel_prefix="front_left" fixed_wheel="${fixed_wheel}">
     <origin xyz="${wheelbase/2} ${track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:husky_wheel>
-  <xacro:husky_wheel wheel_prefix="front_right">
+  <xacro:husky_wheel wheel_prefix="front_right" fixed_wheel="${fixed_wheel}">
     <origin xyz="${wheelbase/2} ${-track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:husky_wheel>
-  <xacro:husky_wheel wheel_prefix="rear_left">
+  <xacro:husky_wheel wheel_prefix="rear_left" fixed_wheel="${fixed_wheel}">
     <origin xyz="${-wheelbase/2} ${track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:husky_wheel>
-  <xacro:husky_wheel wheel_prefix="rear_right">
+  <xacro:husky_wheel wheel_prefix="rear_right" fixed_wheel="${fixed_wheel}">
     <origin xyz="${-wheelbase/2} ${-track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:husky_wheel>
 
