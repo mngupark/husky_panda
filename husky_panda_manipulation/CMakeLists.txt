@@ -17,7 +17,6 @@ set(PACKAGE_DEPENDENCIES
         mppi
         mppi_ros
         mppi_pinocchio
-        mppi_panda_mobile
         roslib
         roscpp
         manipulation_msgs
@@ -56,7 +55,7 @@ add_executable(reference_parsing_test src/tests/reference_parsing.cpp)
 target_link_libraries(reference_parsing_test ${PROJECT_NAME} ${catkin_LIBRARIES} )
 add_dependencies(reference_parsing_test ${PROJECT_NAME})
 
-if (BUILD_WITH_OGRE)
+# if (BUILD_WITH_OGRE)
   find_package(raisimOgre CONFIG REQUIRED)
   add_executable(sim_ogre src/tests/sim.cpp)
   target_link_libraries(sim_ogre PUBLIC raisim::raisimOgre)
@@ -65,7 +64,7 @@ if (BUILD_WITH_OGRE)
   add_executable(raisim_rendering_node src/nodes/raisim_rendering_node.cpp)
   target_link_libraries(raisim_rendering_node PUBLIC ${PROJECT_NAME} ${catkin_LIBRARIES} raisim::raisimOgre)
   add_dependencies(raisim_rendering_node ${PROJECT_NAME})
-endif()
+# endif()
 
 install(DIRECTORY launch resources
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}

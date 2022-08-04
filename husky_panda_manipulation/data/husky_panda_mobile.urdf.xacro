@@ -12,11 +12,16 @@
 
     <!-- husky base -->
     <xacro:unless value="$(arg fixed_base)">
+        <link name="husky_base_root_link"/>
         <joint name="world_joint" type="fixed">
             <parent link="world"/>
             <child link="husky_base_root_link"/>
         </joint>
-        <xacro:planar_base connect_to="base_link"/>
+        <joint name="husky_base_flange" type="fixed">
+            <parent link="husky_base_root_link"/>
+            <child link="base_link"/>
+            <origin xyz="0 0 0.13228" rpy="0 0 0" />
+        </joint>
     </xacro:unless>
 
     <xacro:if value="$(arg fixed_base)">

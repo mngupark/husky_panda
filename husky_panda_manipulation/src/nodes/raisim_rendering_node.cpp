@@ -12,7 +12,7 @@
 
 #include <manipulation_msgs/State.h>
 #include <manipulation_msgs/conversions.h>
-#include <husky_panda_manipulation/dynamics.h>
+#include <husky_panda_manipulation/dynamics_ros.h>
 
 #include <ros/ros.h>
 
@@ -70,13 +70,16 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  manipulation::PandaRaisimDynamics dynamics(
-      robot_description_raisim, object_description_raisim, 0.01);
-
+  manipulation::DynamicsParams params;
+  params.dt = 0.01;
+  params.robot_description = robot_description_raisim;
+  params.object_description = object_description_raisim;
+  manipulation::PandaRaisimDynamics dynamics(params);
   /// just a shortcut
   auto vis = raisim::OgreVis::get();
 
   /// these method must be called before initApp
+  dynamics.get_world()->setActivationKey("/home/keunwoo/.raisim/activation.raisim");
   dynamics.get_world()->setTimeStep(0.0001);
   vis->setWorld(dynamics.get_world());
   vis->setWindowSize(1800, 1200);
@@ -100,10 +103,11 @@ int main(int argc, char** argv) {
   auto panda_graphics =
       vis->createGraphicalObject(dynamics.get_panda(), "panda");
 
-  mppi::DynamicsBase::observation_t current_state;
+  mppi::observation_t current_state;
 
   auto cb = [&](const manipulation_msgs::StateConstPtr& msg) {
-    manipulation::conversions::msgToEigen(*msg, current_state);
+    double time;
+    manipulation::conversions::msgToEigen(*msg, current_state, time);
     dynamics.reset(current_state, 0);
   };
 

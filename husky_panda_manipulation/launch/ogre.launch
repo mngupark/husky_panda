@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
+  <arg name="debug" default="false"/>
+    <arg name="launch_prefix" value="" unless="$(arg debug)"/>
+    <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
     <arg name="fixed_base" default="false"/>
-    <param name="robot_description_ogre" command="$(find xacro)/xacro $(find husky_panda_manipulation)/data/panda_mobile.urdf.xacro
-      husky_resources_prefix:='$(find husky_description)'
+    <param name="robot_description_ogre" command="$(find xacro)/xacro $(find husky_panda_manipulation)/data/husky_panda_mobile.urdf.xacro
       collision_links:=false
       collision_hand:=true
       collision_finger:=true
@@ -12,7 +14,14 @@
       no_position_limits:=true
       fixed_base:=$(arg fixed_base)"/>
     
-    <node pkg="husky_panda_manipulation" type="raisim_rendering_node" name="raisim_rendering_node" output="screen">
+    <arg name="object" default="door"/>
+    <arg name="object_height" default="1.0"/>
+    <param name="object_description_raisim"
+           command="$(find xacro)/xacro $(find husky_panda_manipulation)/data/objects/$(arg object).urdf.xacro
+           origin_x:=0.943
+           height:=$(arg object_height)"/>
+
+    <node pkg="husky_panda_manipulation" type="raisim_rendering_node" name="raisim_rendering_node" output="screen" launch-prefix="$(arg launch_prefix)">
       <param name="fixed_base" value="$(arg fixed_base)"/>
     </node>
 </launch>

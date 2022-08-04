@@ -54,7 +54,7 @@ void setupCallback() {
 
 int main(int argc, char** argv) {
   raisim::World::setActivationKey(
-      "/home/giuseppe/raisim_ws/raisimLib/build/examples/rsc/"
+      "/home/keunwoo/.raisim/"
       "activation.raisim");
 
   /// create raisim world
@@ -75,13 +75,11 @@ int main(int argc, char** argv) {
 
   /// create raisim objects
   auto panda = world.addArticulatedSystem(
-      "/home/giuseppe/clion_ws/sampling_control_project/src/"
-      "sampling_based_control/mppi_examples/"
+      "/home/keunwoo/husky_panda_ws/src/"
       "husky_panda_manipulation/data/panda_mobile_fixed.urdf",
       "/");
   auto door = world.addArticulatedSystem(
-      "/home/giuseppe/clion_ws/sampling_control_project/src/"
-      "sampling_based_control/mppi_examples/"
+      "/home/keunwoo/husky_panda_ws/src/"
       "husky_panda_manipulation/data/objects/shelf.urdf");
   auto ground = world.addGround(-1);
   // ground->setName("checkerboard"); /// not necessary here but once you set
@@ -178,7 +176,7 @@ int main(int argc, char** argv) {
       std::cout << "Quering contacts for frame: " << doorStepIndex << std::endl;
 
       start = steady_clock::now();
-      std::vector<contact::Contact> contacts = door->getContacts();
+      std::vector<raisim::Contact> contacts = door->getContacts();
       end = steady_clock::now();
 
       std::cout << "There are: " << contacts.size() << " contacts."
@@ -198,12 +196,12 @@ int main(int argc, char** argv) {
         /// object is objectA or B by
         std::cout << "Door step in collision!" << std::endl;
         std::cout << "Contact impulse in the contact frame: "
-                  << contact.getImpulse()->e() << std::endl;
+                  << contact.getImpulse().e() << std::endl;
         std::cout << "is ObjectA: " << contact.isObjectA() << std::endl;
         std::cout << "Contact frame: \n"
                   << contact.getContactFrame().e() << std::endl;
         std::cout << "Contact impulse in the world frame: "
-                  << contact.getContactFrame().e() * contact.getImpulse()->e()
+                  << contact.getContactFrame().e() * contact.getImpulse().e()
                   << std::endl;
         std::cout << "Contact Normal in the world frame: "
                   << contact.getNormal().e().transpose() << std::endl;
