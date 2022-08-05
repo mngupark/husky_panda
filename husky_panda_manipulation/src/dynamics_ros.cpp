@@ -13,6 +13,8 @@ ManipulatorDynamicsRos::ManipulatorDynamicsRos(const ros::NodeHandle& nh,
                                                const DynamicsParams& params)
     : nh_(nh), PandaRaisimDynamics(params) {
   state_publisher_ =
+      nh_.advertise<std_msgs::Float64MultiArray>("/robot_states", 10);
+  joint_state_publisher_ =
       nh_.advertise<sensor_msgs::JointState>("/joint_states", 10);
   object_state_publisher_ =
       nh_.advertise<sensor_msgs::JointState>("/object/joint_state", 10);
@@ -26,14 +28,14 @@ ManipulatorDynamicsRos::ManipulatorDynamicsRos(const ros::NodeHandle& nh,
   power_publisher_ = nh_.advertise<std_msgs::Float64>("/power", 1);
 
   joint_state_.name = {
-      "x_base_joint", "y_base_joint",        "pivot_joint",
+      "front_left_wheel", "front_right_wheel", "rear_left_wheel", "rear_right_wheel",
       "panda_joint1", "panda_joint2",        "panda_joint3",
       "panda_joint4", "panda_joint5",        "panda_joint6",
       "panda_joint7", "panda_finger_joint1", "panda_finger_joint2"};
 
   joint_state_.position.resize(joint_state_.name.size());
   joint_state_.velocity.resize(joint_state_.name.size());
-  joint_state_.header.frame_id = "world";
+  joint_state_.header.frame_id = "base_link";
   object_state_.name = {params_.articulation_joint};
   object_state_.position.resize(1);
 
@@ -66,13 +68,25 @@ void ManipulatorDynamicsRos::reset_to_default() {
 }
 
 void ManipulatorDynamicsRos::publish_ros() {
+  static tf::TransformBroadcaster br;
+  tf::Transform transform;
+  transform.setOrigin( tf::Vector3(x_(0), x_(1), 0.0) );
+  tf::Quaternion q;
+  q.setRPY(0, 0, x_(2));
+  transform.setRotation(q);
+  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "odom", "base_link"));
+
   // update robot state visualization
   joint_state_.header.stamp = ros::Time::now();
-  for (size_t j = 0; j < robot_dof_; j++) {
+  for (size_t j = 0; j < BASE_DIMENSION; j++) {
+    joint_state_.position[j] = joint_p_(j);
+    joint_state_.velocity[j] = joint_v_(j);
+  }
+  for (size_t j = BASE_DIMENSION; j < BASE_ARM_GRIPPER_DIM; j++) {
     joint_state_.position[j] = x_(j);
     joint_state_.velocity[j] = x_(j + robot_dof_);
   }
-  state_publisher_.publish(joint_state_);
+  joint_state_publisher_.publish(joint_state_);
 
   // update object state visualization
   object_state_.header.stamp = ros::Time::now();
@@ -112,7 +126,7 @@ void ManipulatorDynamicsRos::publish_ros() {
   get_end_effector_pose(ee_position, ee_orientation);
   geometry_msgs::PoseStamped pose_ros;
   pose_ros.header.stamp = ros::Time::now();
-  pose_ros.header.frame_id = "world";
+  pose_ros.header.frame_id = "odom";
   pose_ros.pose.position.x = ee_position.x();
   pose_ros.pose.position.y = ee_position.y();
   pose_ros.pose.position.z = ee_position.z();

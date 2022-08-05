@@ -42,7 +42,7 @@ bool PandaControllerInterface::init_ros() {
       nh_.subscribe("/end_effector_pose_desired", 10,
                     &PandaControllerInterface::ee_pose_desired_callback, this);
 
-  std::vector<double> default_pose;
+  std::vector<double> default_pose; // Default joint displacements of the arm.
   if (!nh_.param<std::vector<double>>("default_pose", default_pose, {}) ||
       default_pose.size() != 7) {
     ROS_ERROR("Failed to parse the default pose or wrong params.");
@@ -98,8 +98,8 @@ bool PandaControllerInterface::init_ros() {
   last_ob_ref_id_ = 0;
   obstacle_pose_.header.seq = last_ob_ref_id_;
 
-  optimal_path_.header.frame_id = "world";
-  optimal_base_path_.header.frame_id = "world";
+  optimal_path_.header.frame_id = "odom";
+  optimal_base_path_.header.frame_id = "odom";
   reference_set_ = false;
   ROS_INFO("[PandaControllerInterface::init_ros] ok!");
   return true;
@@ -193,7 +193,7 @@ bool PandaControllerInterface::set_controller(mppi::solver_ptr& controller) {
   // -------------------------------
   // initialize reference
   // -------------------------------
-  ref_.rr.resize(1, mppi::observation_t::Zero(PandaDim::REFERENCE_DIMENSION));
+  ref_.rr.resize(1, mppi::observation_t::Zero(HuskyPandaDim::REFERENCE_DIMENSION));
   // init obstacle fare away
   ref_.rr[0](7) = 100;
   ref_.rr[0](8) = 100;
@@ -206,7 +206,7 @@ bool PandaControllerInterface::set_controller(mppi::solver_ptr& controller) {
 bool PandaControllerInterface::init_reference_to_current_pose(
     const mppi::observation_t& x, const double t) {
   auto ee_pose = get_pose_end_effector(x);
-  ref_.rr.resize(1, mppi::observation_t::Zero(PandaDim::REFERENCE_DIMENSION));
+  ref_.rr.resize(1, mppi::observation_t::Zero(HuskyPandaDim::REFERENCE_DIMENSION));
   ref_.rr[0].head<3>() = ee_pose.translation;
   ref_.rr[0].segment<4>(3) = ee_pose.rotation.coeffs();
 
@@ -292,7 +292,7 @@ geometry_msgs::PoseStamped PandaControllerInterface::get_pose_base(
     const mppi::observation_t& x) {
   geometry_msgs::PoseStamped pose_ros;
   pose_ros.header.stamp = ros::Time::now();
-  pose_ros.header.frame_id = "world";
+  pose_ros.header.frame_id = "odom";
   pose_ros.pose.position.x = x(0);
   pose_ros.pose.position.y = x(1);
   pose_ros.pose.position.z = 0.0;
@@ -306,7 +306,7 @@ geometry_msgs::PoseStamped PandaControllerInterface::get_pose_base(
 geometry_msgs::PoseStamped PandaControllerInterface::get_pose_end_effector_ros(
     const Eigen::VectorXd& x) {
   geometry_msgs::PoseStamped pose_ros;
-  pose_ros.header.frame_id = "world";
+  pose_ros.header.frame_id = "odom";
   pose_ros.header.stamp = ros::Time::now();
   mppi_pinocchio::Pose pose = get_pose_end_effector(x);
   mppi_pinocchio::to_msg(pose, pose_ros.pose);
@@ -316,7 +316,7 @@ geometry_msgs::PoseStamped PandaControllerInterface::get_pose_end_effector_ros(
 geometry_msgs::PoseStamped PandaControllerInterface::get_pose_handle_ros(
     const Eigen::VectorXd& x) {
   geometry_msgs::PoseStamped pose_ros;
-  pose_ros.header.frame_id = "world";
+  pose_ros.header.frame_id = "odom";
   pose_ros.header.stamp = ros::Time::now();
   mppi_pinocchio::Pose pose = get_pose_handle(x);
   mppi_pinocchio::to_msg(pose, pose_ros.pose);
@@ -346,7 +346,7 @@ void PandaControllerInterface::publish_ros() {
   // extrapolate base twist from optimal base path
   if (optimal_base_path_.poses.size() > 2) {
     geometry_msgs::TwistStamped base_twist_from_path;
-    base_twist_from_path.header.frame_id = "world";
+    base_twist_from_path.header.frame_id = "odom";
     base_twist_from_path.twist.linear.x =
         (optimal_base_path_.poses[1].pose.position.x -
          optimal_base_path_.poses[0].pose.position.x) /

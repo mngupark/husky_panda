@@ -1,9 +1,9 @@
 /*!
- * @file     panda_control.cpp
- * @author   Giuseppe Rizzi
- * @date     11.06.2020
+ * @file     husky_panda_control.cpp
+ * @author   Mingyu Park
+ * @date     04.08.2022
  * @version  1.0
- * @brief    description
+ * @brief    Clearpath Husky A200 and Franka Emika Panda robots control node
  */
 #include "husky_panda_manipulation/controller_interface.h"
 
@@ -18,7 +18,7 @@ using namespace std::chrono;
 using namespace manipulation;
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "panda_raisim_control_node");
+  ros::init(argc, argv, "husky_panda_raisim_control_node");
   ros::NodeHandle nh("~");
 
   std::string experiment_name;

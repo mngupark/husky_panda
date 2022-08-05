@@ -23,10 +23,10 @@ mppi::cost_t PandaCost::compute_cost(const mppi::observation_t& x,
                                      const double t) {
   double cost = 0.0;
   
-  int mode = ref(PandaDim::REFERENCE_DIMENSION - 1);
+  int mode = ref(HuskyPandaDim::REFERENCE_DIMENSION - 1);
 
-  robot_model_.update_state(x.head<BASE_ARM_GRIPPER_DIM>());
-  object_model_.update_state(x.segment<1>(2 * BASE_ARM_GRIPPER_DIM));
+  robot_model_.update_state(x.head<TORQUE_DIMENSION>());
+  object_model_.update_state(x.segment<1>(2 * TORQUE_DIMENSION));
   
 
   // regularization cost
@@ -106,8 +106,8 @@ mppi::cost_t PandaCost::compute_cost(const mppi::observation_t& x,
             params_.Q_reachs * (std::pow(reach - params_.min_dist, 2));
   }
   
-  // joint limits cost
-  for (size_t i = 0; i < 10; i++) {
+  // joint limits cost (only arm(panda))
+  for (size_t i = 4; i < 10; i++) {
     if (x(i) < params_.lower_joint_limits[i])
       cost += params_.Q_joint_limit +
               params_.Q_joint_limit_slope *

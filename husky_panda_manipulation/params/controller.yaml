@@ -9,6 +9,35 @@ sequential: false
 
 default_pose: [0.62, 0.005, 1.43, 0.99, 0.05, -0.1, -0.003]
 object_tolerance: 0.09 # ~5 deg
+
+# left_wheel: ['front_left_wheel', 'rear_left_wheel']
+# right_wheel: ['front_right_wheel', 'rear_right_wheel']
+
+# pose_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.03]
+# twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.03]
+
+# # Base frame_id
+# base_frame_id: base_link
+
+# # Wheel separation and radius multipliers
+# wheel_separation_multiplier: 1.875 # default: 1.0
+# wheel_radius_multiplier    : 1.0 # default: 1.0
+
+# # Velocity and acceleration limits
+# # Whenever a min_* is unspecified, default to -max_*
+# linear:
+#   x:
+#     has_velocity_limits    : true
+#     max_velocity           : 1.0   # m/s
+#     has_acceleration_limits: true
+#     max_acceleration       : 3.0   # m/s^2
+# angular:
+#   z:
+#     has_velocity_limits    : true
+#     max_velocity           : 2.0   # rad/s
+#     has_acceleration_limits: true
+#     max_acceleration       : 6.0   # rad/s^2
+
 solver:
   rollouts: 20
   lambda: 0.0001 #0.001
@@ -24,19 +53,19 @@ solver:
   momentum_step_size: 0.0
 
   filtering: true
-  filters_order: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  filters_window: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+  filters_order: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  filters_window: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
 
   bound_input: true
-  u_min: [-0.2, -0.2, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
-  u_max: [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  u_min: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+  u_max: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
   spline_degree: 3
   spline_dt: 0.1
   spline_step_size: 0.1
 
   adaptive_sampling: false
-  input_variance: [0.05, 0.05, 0.05, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+  input_variance: [0.05, 0.05, 0.05, 0.05, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
 
   discount_factor: 1.0
   verbose: false

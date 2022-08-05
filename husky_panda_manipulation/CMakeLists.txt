@@ -20,6 +20,7 @@ set(PACKAGE_DEPENDENCIES
         roslib
         roscpp
         manipulation_msgs
+        tf
         tf2_ros
         signal_logger
         )
@@ -40,10 +41,12 @@ add_library(${PROJECT_NAME}
         src/cost.cpp
         src/controller_interface.cpp
         src/reference_scheduler.cpp
-        src/dynamics_ros.cpp)
+        src/dynamics_ros.cpp
+        src/odometry.cpp
+        src/speed_limiter.cpp)
 target_link_libraries(${PROJECT_NAME} PUBLIC raisim::raisim ${catkin_LIBRARIES} yaml-cpp)
 
-add_executable(manipulation_control src/nodes/panda_control.cpp)
+add_executable(manipulation_control src/nodes/husky_panda_control.cpp)
 target_link_libraries(manipulation_control ${PROJECT_NAME} ${catkin_LIBRARIES} )
 add_dependencies(manipulation_control ${PROJECT_NAME})
 

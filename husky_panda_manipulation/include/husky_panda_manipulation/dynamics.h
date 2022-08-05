@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include "husky_panda_manipulation/dimensions.h"
 #include "husky_panda_manipulation/params/dynamics_params.h"
+#include "husky_panda_manipulation/odometry.h"
 
 namespace manipulation {
 
@@ -72,7 +73,7 @@ class PandaRaisimDynamics : public mppi::Dynamics {
 
   raisim::World* get_world() { return &sim_; }
   
-  raisim::ArticulatedSystem* get_panda() { return panda_; }
+  raisim::ArticulatedSystem* get_panda() { return husky_panda_; }
   
   raisim::ArticulatedSystem* get_object() { return object_; }
 
@@ -104,8 +105,8 @@ class PandaRaisimDynamics : public mppi::Dynamics {
 
  protected:
   size_t robot_dof_;
-  size_t input_dimension_;
-  size_t state_dimension_;
+  size_t coordinate_dimension_, velocity_dimension_;
+  size_t input_dimension_, state_dimension_;
 
   mppi::observation_t x_;
   Eigen::VectorXd tau_ext_;
@@ -120,9 +121,15 @@ class PandaRaisimDynamics : public mppi::Dynamics {
   std::string object_description_;
 
   raisim::World sim_;
-  raisim::ArticulatedSystem* panda_;
+  raisim::ArticulatedSystem* husky_panda_;
   raisim::ArticulatedSystem* object_;
 
+  Odometry odometry_;
+  double wheel_separation_multiplier_;
+  double left_wheel_radius_multiplier_;
+  double right_wheel_radius_multiplier_;
+  double wheel_separation_;
+  double wheel_radius_;
 
   Eigen::VectorXd object_p_, object_v_;
   Eigen::VectorXd cmd_, cmdv_;

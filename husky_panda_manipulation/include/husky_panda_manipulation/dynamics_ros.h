@@ -11,6 +11,7 @@
 #include <std_msgs/Float64.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <visualization_msgs/MarkerArray.h>
+#include "tf/transform_broadcaster.h"
 
 namespace manipulation {
 
@@ -27,6 +28,7 @@ class ManipulatorDynamicsRos : public PandaRaisimDynamics {
  private:
   ros::NodeHandle nh_;
   ros::Publisher state_publisher_;
+  ros::Publisher joint_state_publisher_;
   ros::Publisher object_state_publisher_;
   ros::Publisher contact_forces_publisher_;
   ros::Publisher ee_publisher_;
@@ -34,6 +36,7 @@ class ManipulatorDynamicsRos : public PandaRaisimDynamics {
   ros::Publisher tau_ext_publisher_;
   ros::Publisher power_publisher_;
 
+  std_msgs::Float64MultiArray state_;
   sensor_msgs::JointState joint_state_;
   sensor_msgs::JointState object_state_;
   visualization_msgs::Marker force_marker_;
