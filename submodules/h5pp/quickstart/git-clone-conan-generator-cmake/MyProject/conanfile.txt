@@ -1,8 +1,0 @@
-[requires]
-h5pp/1.8.5@
-
-[generators]
-cmake_find_package
-
-[options]
-*:shared=False
