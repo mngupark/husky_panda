@@ -15,7 +15,7 @@
 namespace husky_panda_control {
 
 /**
-  Structure with all the configuration parameters for the MPPI solver
+  Structure with all the configuration parameters for the husky_panda_control solver
 **/
 struct Config {
   size_t rollouts = 1;

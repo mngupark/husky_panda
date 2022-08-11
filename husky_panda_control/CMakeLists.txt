@@ -41,9 +41,9 @@ option(PYTHON_BINDINGS "Build the python bindings" ON)
 if (${PYTHON_BINDINGS})
     add_subdirectory(../submodules/pybind11 ../submodules/pybind11)
 
-    pybind11_add_module(pymppi python/python.cpp)
-    target_link_libraries(pymppi PUBLIC ${PROJECT_NAME})
-    add_dependencies(pymppi ${PROJECT_NAME})
+    pybind11_add_module(pyhusky_panda_control python/python.cpp)
+    target_link_libraries(pyhusky_panda_control PUBLIC ${PROJECT_NAME})
+    add_dependencies(pyhusky_panda_control ${PROJECT_NAME})
 endif()
 
 if (CATKIN_ENABLE_TESTING)

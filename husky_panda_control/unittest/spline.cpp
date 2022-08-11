@@ -1,5 +1,5 @@
 /*!
- * @file     mppi_methods.cpp
+ * @file     husky_panda_control_methods.cpp
  * @author   Giuseppe Rizzi
  * @date     11.06.2020
  * @version  1.0

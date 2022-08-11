@@ -13,7 +13,7 @@
 using namespace husky_panda_control;
 namespace py = pybind11;
 
-PYBIND11_MODULE(pymppi, m) {
+PYBIND11_MODULE(pyhusky_panda_control, m) {
   m.def("B", &B, "A function which return a basis function");
 
   py::class_<husky_panda_control::BSplinePolicyConfig>(m, "BSplinePolicyConfig")

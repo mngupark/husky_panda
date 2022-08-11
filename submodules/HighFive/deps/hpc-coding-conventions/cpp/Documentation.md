@@ -116,12 +116,12 @@ class Graph {
      */
 
     /**
-     * allow the manipulation of the graph's edges
+     * allow the husky_panda_control of the graph's edges
      */
     Edges& edges();
 
     /**
-     * allow the manipulation of the graph's vertices
+     * allow the husky_panda_control of the graph's vertices
      */
     Vertices& vertices();
     /**
