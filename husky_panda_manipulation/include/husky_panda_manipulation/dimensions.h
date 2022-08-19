@@ -1,31 +1,26 @@
-/*!
- * @file     dimensions.h
- * @author   Giuseppe Rizzi
- * @date     05.10.2020
- * @version  1.0
- * @brief    description
- */
 #pragma once
+#ifndef __DIMENSIONS_H__
+#define __DIMENSIONS_H__
 
-enum PandaDim : char {
-  GRIPPER_DIMENSION = 2,  // position of the gripper fingers (2)
-  ARM_DIMENSION = 7,      // arm only joints
-  BASE_DIMENSION = 3,
-  OBJECT_DIMENSION = 1,
-  CONTACT_STATE = 1,
-  TORQUE_DIMENSION = BASE_DIMENSION + ARM_DIMENSION + GRIPPER_DIMENSION,
+enum HuskyPandaMobileDim
+{
+      REFERENCE_DIMENSION = 10,                       // x_t, x_q, obstacle_t
 
-  ARM_GRIPPER_DIM = ARM_DIMENSION + GRIPPER_DIMENSION,
-  BASE_ARM_GRIPPER_DIM = BASE_DIMENSION + ARM_GRIPPER_DIM,
+      GENERALIZED_COORDINATE = 7,                     // translation vector(x,y,z) and orientation quaternion(w,x,y,z) of simulation
+      GENERALIZED_VELOCITY = 6,                       // linear velocity vector(x,y,z) and angular velocity vector(roll,pitch,yaw) of simulation
+      VIRTUAL_BASE_DIMENSION = 3,                     // translation x and y, orientation yaw(z-axis) for mobile base
+      BASE_JOINT_DIMENSION = 4,                       // base wheel joint dimension
+      ARM_DIMENSION = 7,                              // arm joint dimension
+      GRIPPER_DIMENSION = 2,                          // gripper joint dimension
+      
+      ARM_GRIPPER_DIMENSION = ARM_DIMENSION + GRIPPER_DIMENSION,
+      VIRTUAL_BASE_ARM_GRIPPER_DIMENSION = VIRTUAL_BASE_DIMENSION + ARM_GRIPPER_DIMENSION,
+      BASE_JOINT_ARM_GRIPPER_DIMENSION = BASE_JOINT_DIMENSION + ARM_GRIPPER_DIMENSION,
 
-  STATE_DIMENSION = BASE_ARM_GRIPPER_DIM * 2 + OBJECT_DIMENSION * 2 + CONTACT_STATE + TORQUE_DIMENSION,
-  INPUT_DIMENSION = BASE_ARM_GRIPPER_DIM - 1, // mimic-joint for gripper
-
-  REFERENCE_POSE_DIMENSION = 7,
-  REFERENCE_OBSTACLE = 3,
-  REFERENCE_OBJECT_DIMENSION = 1,
-  REFERENCE_FLAG = 1,  // trigger some costs components
-
-  REFERENCE_DIMENSION = REFERENCE_POSE_DIMENSION + REFERENCE_OBSTACLE +
-                        REFERENCE_OBJECT_DIMENSION + REFERENCE_FLAG
+      STATE_DIMENSION = VIRTUAL_BASE_ARM_GRIPPER_DIMENSION, // x, y, yaw, q_arm, q_gripper
+      INPUT_DIMENSION = VIRTUAL_BASE_ARM_GRIPPER_DIMENSION, // xdot, ydot, yawdot, qdot_arm, qdot_gripper
+      SIM_STATE_DIMENSION = GENERALIZED_COORDINATE + BASE_JOINT_ARM_GRIPPER_DIMENSION, // genco + wheel + arm + gripper
+      SIM_INPUT_DIMENSION = GENERALIZED_VELOCITY + BASE_JOINT_ARM_GRIPPER_DIMENSION // genve + wheel + arm + gripper
 };
+
+#endif // !__DIMENSIONS_H__

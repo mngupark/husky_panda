@@ -1,319 +1,316 @@
-/*!
- * @file     dynamics_raisim.cpp
- * @author   Giuseppe Rizzi
- * @date     05.10.2020
- * @version  1.0
- * @brief    description
- */
-
 #include "husky_panda_manipulation/dynamics.h"
-#include <ros/package.h>
 
-namespace husky_panda_control {
+using namespace husky_panda_control;
+namespace husky_panda_control
+{
 
-PandaRaisimDynamics::PandaRaisimDynamics(const DynamicsParams& params)
-    : params_(params) {
-  initialize_world(params_.robot_description, params_.object_description);
-  initialize_pd();
-  set_collision();
+  HuskyPandaRaisimDynamics::HuskyPandaRaisimDynamics(const std::string &robot_description, const std::string &obstacle_description)
+      : robot_description_(robot_description), obstacle_description_(obstacle_description)
+  {
+    // init model
+    x_ = observation_t::Zero(HuskyPandaMobileDim::STATE_DIMENSION);
+    initialize_world(robot_description, obstacle_description);
+    initialize_pd();
+    set_collision();
+
+    t_ = 0.0;
+  }
+
+  void HuskyPandaRaisimDynamics::initialize_params()
+  {
+  }
+
+  void HuskyPandaRaisimDynamics::initialize_world(const std::string &robot_description, const std::string &obstacle_description)
+  {
+    dt_ = 0.01;
+    sim_.setTimeStep(0.01);
+    sim_.setERP(0., 0.);
+
+    gravity_.e() << 0.0, 0.0, -9.81;
+    sim_.setGravity(gravity_);
+
+    // set friction properties
+    sim_.setMaterialPairProp("steel", "steel", 0.01, 0.15, 0.001);
+
+    // add ground
+    auto ground = sim_.addGround(0.0, "gnd");
+
+    robot_description_ = robot_description;
+    husky_panda_ = sim_.addArticulatedSystem(robot_description_);
+    husky_panda_->setName("Husky & Panda");
+
+    /// create raisim obstacle
+    obstacle_description_ = obstacle_description;
+    obstacle_ = sim_.addArticulatedSystem(obstacle_description);
+    obstacle_->setName("Obstacle");
+
+    // create reference object
+    ref_ = sim_.addSphere(0.05, 0.05);
+    ref_->setName("Reference");
+    ref_->setAppearance("Yellow");
+
+    // robot dof
+    robot_dof_ = VIRTUAL_BASE_ARM_GRIPPER_DIMENSION;
+    state_dimension_ = STATE_DIMENSION;
+    sim_state_dimension_ = SIM_STATE_DIMENSION;
+    input_dimension_ = INPUT_DIMENSION;
+    sim_input_dimension_ = SIM_INPUT_DIMENSION;
+    x_ = husky_panda_control::observation_t::Zero(STATE_DIMENSION);
+    sim_x_ = husky_panda_control::observation_t::Zero(SIM_STATE_DIMENSION);
+
+    wheel_radius_multiplier_ = 1.0;
+    wheel_separation_multiplier_ = 1.875;
+
+    wheel_radius_ = 0.1651 * wheel_radius_multiplier_;
+    wheel_separation_ = 0.5708 * wheel_separation_multiplier_;
+    constrained_matrix_.setZero(BASE_JOINT_DIMENSION, VIRTUAL_BASE_DIMENSION);
+    constrained_matrix_.block<BASE_JOINT_DIMENSION, 1>(0, 0) = Eigen::VectorXd::Ones(BASE_JOINT_DIMENSION) / wheel_radius_;
+    constrained_matrix_(0, 2) = wheel_separation_ / (2.0 * wheel_radius_);
+    constrained_matrix_(1, 2) = -wheel_separation_ / (2.0 * wheel_radius_);
+    constrained_matrix_(2, 2) = wheel_separation_ / (2.0 * wheel_radius_);
+    constrained_matrix_(3, 2) = -wheel_separation_ / (2.0 * wheel_radius_);
+
+    Eigen::VectorXd gc(husky_panda_->getGeneralizedCoordinateDim()), gv(husky_panda_->getDOF());
+    gc.setZero();
+    gv.setZero();
+    gc.segment<GENERALIZED_COORDINATE + BASE_JOINT_ARM_GRIPPER_DIMENSION>(0) << 
+    0, 0, 0.3, 1, 0, 0, 0, 0, 0, 0, 0, 0.0, -0.52, 0.0, -1.785, 0.0, 1.10, 0.69, 0.04, 0.04;
+
+    husky_panda_->setGeneralizedCoordinate(gc);
+    husky_panda_->setGeneralizedVelocity(gv);
+    return;
+  }
+
+  void HuskyPandaRaisimDynamics::initialize_pd()
+  {
+    joint_p_.setZero(SIM_STATE_DIMENSION);
+    joint_v_.setZero(SIM_INPUT_DIMENSION);
+    obstacle_p_.setZero(VIRTUAL_BASE_DIMENSION);
+    obstacle_v_.setZero(VIRTUAL_BASE_DIMENSION);
+    cmd_.setZero(SIM_STATE_DIMENSION);
+    cmdv_.setZero(SIM_INPUT_DIMENSION);
+    cmd_obstacle_.setZero(VIRTUAL_BASE_DIMENSION);
+    ref_p_.setZero();
+    cmd_ref_.setZero();
+    joint_p_gain_.setZero(SIM_INPUT_DIMENSION);
+    joint_d_gain_.setZero(SIM_INPUT_DIMENSION);
+
+    for (size_t i = GENERALIZED_VELOCITY; i < GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION; i++)
+    {
+      joint_p_gain_(i) = 0.0;
+      joint_d_gain_(i) = 100.0;
+    }
+    for (size_t i = GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION; i < GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + ARM_DIMENSION; i++)
+    {
+      joint_p_gain_(i) = 0.0;
+      joint_d_gain_(i) = 100.0;
+    }
+    for (size_t i = GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + ARM_DIMENSION; i < SIM_INPUT_DIMENSION; i++)
+    {
+      joint_p_gain_(i) = 100.0;
+      joint_d_gain_(i) = 50.0;
+    }
+
+    husky_panda_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
+    husky_panda_->setPdGains(joint_p_gain_, joint_d_gain_);
+    husky_panda_->setGeneralizedForce(Eigen::VectorXd::Zero(husky_panda_->getDOF()));
+
+    // initialize obstacle
+    Eigen::Vector3d obstacle_initial_position;
+    obstacle_initial_position.setZero();
+    obstacle_initial_position(0) = 1.0;
+    obstacle_initial_position(2) = 1.0;
+    cmd_obstacle_ = obstacle_initial_position;
+    obstacle_->setControlMode(raisim::ControlMode::FORCE_AND_TORQUE);
+    obstacle_->setPdGains(Eigen::VectorXd::Zero(VIRTUAL_BASE_DIMENSION), Eigen::VectorXd::Zero(VIRTUAL_BASE_DIMENSION));
+    obstacle_->setGeneralizedForce(obstacle_initial_position);
+
+    // initialize reference object
+    Eigen::Vector3d ref_initial_position;
+    ref_initial_position.setZero();
+    ref_initial_position(0) = 1.0;
+    ref_initial_position(2) = 1.0;
+    cmd_ref_ = ref_initial_position;
+    ref_->setPosition(ref_initial_position);
+
+    return;
+  }
+
+  void HuskyPandaRaisimDynamics::set_collision()
+  {
+    std::vector<int> husky_panda_body_idxs;
+    for (const auto &body_name : husky_panda_->getBodyNames())
+      husky_panda_body_idxs.push_back(husky_panda_->getBodyIdx(body_name));
+    for (const auto body_idx1 : husky_panda_body_idxs)
+      for (const auto body_idx2 : husky_panda_body_idxs)
+        husky_panda_->ignoreCollisionBetween(body_idx1, body_idx2);
+    return;
+  }
+
+  void HuskyPandaRaisimDynamics::advance()
+  {
+    // step simulation
+    sim_.integrate();
+    t_ += sim_.getTimeStep();
+
+    husky_panda_->getState(joint_p_, joint_v_);
+    obstacle_->getState(obstacle_p_, obstacle_v_);
+    ref_->getPosition(ref_p_);
+    Eigen::Vector3d base_position;
+    Eigen::Quaterniond base_orientation;
+    get_base_pose(base_position, base_orientation);
+
+    x_(0) = base_position(0);
+    x_(1) = base_position(1);  
+    x_(2) = base_orientation.normalized().toRotationMatrix().eulerAngles(0, 1, 2)(2);
+    
+    // x_(0) = joint_p_(0);
+    // x_(1) = joint_p_(1);
+    // raisim::Mat<3, 3> ori;
+    // husky_panda_->getBodyOrientation(0, ori);
+    // Eigen::Quaterniond q;
+    // q.w() = joint_p_(3);
+    // q.x() = joint_p_(4);
+    // q.y() = joint_p_(5);
+    // q.z() = joint_p_(6);
+    // q.normalize();
+    // // double siny_cosp = 2 * (q.w() * q.z() + q.x() * q.y());
+    // // double cosy_cosp = 1 - 2 * (q.y() * q.y() + q.z() * q.z());
+    // // x_(2) = std::atan2(siny_cosp, cosy_cosp);
+    // // x_(2) = q.toRotationMatrix().eulerAngles(0, 1, 2)(2);
+    // if (std::abs(pre_yaw_ - x_(2)) > 1.57) x_(2) = pre_yaw_;
+    // else 
+    //   x_(2) = -std::atan2(ori.e()(0, 2), ori.e()(1, 2)); //ori.e().eulerAngles(0, 1, 2)(2);
+    // pre_yaw_ = x_(2);
+
+    x_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION) = joint_p_.segment(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION, ARM_GRIPPER_DIMENSION);
+    return;
+  }
   
-  t_ = 0.0;
-  ee_force_applied_ = false;
-};
+  void HuskyPandaRaisimDynamics::set_control(const husky_panda_control::input_t& u)
+  {
+    // keep the gripper in the current position
+    cmd_.tail<GRIPPER_DIMENSION>()
+      << x_.tail<GRIPPER_DIMENSION>();
 
-void PandaRaisimDynamics::initialize_world(
-    const std::string& robot_description,
-    const std::string& object_description) {
-  dt_ = params_.dt;
-  sim_.setTimeStep(params_.dt);
-  sim_.setERP(0., 0.);
+    // // convert global frame input to local frame
+    // raisim::Vec<3> pos;
+    // raisim::Mat<3, 3> rot;
+    // husky_panda_->getBasePosition(pos);
+    // husky_panda_->getBaseOrientation(rot);
+    // Eigen::Vector3d base_pos = pos.e();
+    // Eigen::Matrix3d base_orientation = Eigen::Quaterniond(rot.e()).toRotationMatrix();
+    // Eigen::Matrix4d local_to_base_T;
+    // local_to_base_T.setZero();
+    // local_to_base_T.block<3, 3>(0, 0) = base_orientation.transpose();
+    // local_to_base_T.block<3, 1>(0, 3) = -base_orientation.transpose() * base_pos;
+    // local_to_base_T(3, 3) = 1;
+    // Eigen::Vector4d base_input, temp;
+    // base_input.setZero();
+    // temp.setZero();
+    // base_input(3) = 1;
+    // temp(3) = 1;
+    // temp.head(3) = u.head(3);
+    // base_input = local_to_base_T * temp;
 
-  gravity_.e() << 0.0, 0.0, -9.81;
-  sim_.setGravity(gravity_);
+    cmdv_(GENERALIZED_VELOCITY + 0) = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
+    cmdv_(GENERALIZED_VELOCITY + 2) = u(2);
+    // non-holonomic differential drive constraints
+    cmdv_(GENERALIZED_VELOCITY + 0) = (cmdv_(GENERALIZED_VELOCITY + 0) - cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
+    cmdv_(GENERALIZED_VELOCITY + 1) = (cmdv_(GENERALIZED_VELOCITY + 0) + cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
+    cmdv_(GENERALIZED_VELOCITY + 2) = (cmdv_(GENERALIZED_VELOCITY + 0) - cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
+    cmdv_(GENERALIZED_VELOCITY + 3) = (cmdv_(GENERALIZED_VELOCITY + 0) + cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
+    cmdv_.head<GENERALIZED_VELOCITY>().setZero();
+    // cmdv_.segment(GENERALIZED_VELOCITY, BASE_JOINT_DIMENSION) = constrained_matrix_ * u.head(VIRTUAL_BASE_DIMENSION);
+    cmdv_.segment(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION, ARM_DIMENSION) = u.segment(VIRTUAL_BASE_DIMENSION, ARM_DIMENSION);
+    cmdv_.tail<GRIPPER_DIMENSION>().setZero();
 
-  // set friction properties
-  sim_.setMaterialPairProp("steel", "steel", 0.01, 0.15, 0.001);
+    raisim::VecDyn h = husky_panda_->getNonlinearities(gravity_);
+    // h.e().head(7)(2) = 0.0; // base z-axis force
+    h.e().head(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION).setZero(); // base non linear force
+    husky_panda_->setPdTarget(cmd_, cmdv_);
+    husky_panda_->setGeneralizedForce(h);
 
-  robot_description_ = robot_description;
-  panda_ = sim_.addArticulatedSystem(robot_description_, "/");
+    obstacle_->setGeneralizedCoordinate(cmd_obstacle_);
 
-  tau_ext_ = Eigen::VectorXd::Zero(panda_->getDOF());
-  J_contact_.setZero(3, panda_->getDOF());
+    // gravity compensation for obstacle which has a mass
+    raisim::VecDyn h_obs = obstacle_->getNonlinearities(gravity_);
+    obstacle_->setGeneralizedForce(h_obs);
 
-  /// create raisim objects
-  object_description_ = object_description;
-  object_ = sim_.addArticulatedSystem(object_description_, "/");
-
-  // robot dof
-  robot_dof_ = BASE_ARM_GRIPPER_DIM;
-  state_dimension_ = STATE_DIMENSION;
-  input_dimension_ = INPUT_DIMENSION;
-  x_ = husky_panda_control::observation_t::Zero(STATE_DIMENSION);
-
-  reset(params_.initial_state, t_);
-}
-
-void PandaRaisimDynamics::initialize_pd() {
-  /// panda
-  cmd_.setZero(robot_dof_);
-  cmdv_.setZero(robot_dof_);
-  joint_p_.setZero(robot_dof_);
-  joint_v_.setZero(robot_dof_);
-  joint_p_gain_.setZero(robot_dof_);
-  joint_d_gain_.setZero(robot_dof_);
-  joint_p_desired_.setZero(robot_dof_);
-  joint_v_desired_.setZero(robot_dof_);
-
-  // clang-format off
-  joint_p_gain_.head(BASE_DIMENSION) = params_.gains.base_gains.Kp;
-  joint_d_gain_.head(BASE_DIMENSION) = params_.gains.base_gains.Kd;
-  joint_p_gain_.segment(BASE_DIMENSION, ARM_DIMENSION) = params_.gains.arm_gains.Kp;
-  joint_d_gain_.segment(BASE_DIMENSION, ARM_DIMENSION) = params_.gains.arm_gains.Kd;
-  joint_p_gain_.tail(GRIPPER_DIMENSION) = params_.gains.gripper_gains.Kp;
-  joint_d_gain_.tail(GRIPPER_DIMENSION) = params_.gains.gripper_gains.Kd;
-  // clang-format on
-
-  panda_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
-  panda_->setPdGains(joint_p_gain_, joint_d_gain_);
-  panda_->setGeneralizedForce(Eigen::VectorXd::Zero(panda_->getDOF()));
-
-  object_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
-  object_->setPdGains(Eigen::VectorXd::Zero(1), Eigen::VectorXd::Zero(1));
-  object_->setGeneralizedForce({0.0});
-}
-
-void PandaRaisimDynamics::set_collision() {
-  std::vector<int> pandaBodyIdxs;
-  for (const auto& bodyName : panda_->getBodyNames())
-    pandaBodyIdxs.push_back(panda_->getBodyIdx(bodyName));
-  for (const auto body_idx1 : pandaBodyIdxs)
-    for (const auto body_idx2 : pandaBodyIdxs)
-      panda_->ignoreCollisionBetween(body_idx1, body_idx2);
-}
-
-void PandaRaisimDynamics::set_control(const husky_panda_control::input_t& u) {
-  // keep the gripper in the current position
-  cmd_.tail<PandaDim::GRIPPER_DIMENSION>()
-      << x_.head<BASE_ARM_GRIPPER_DIM>().tail<GRIPPER_DIMENSION>();
-
-  cmdv_(0) = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
-  cmdv_(1) = u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
-  cmdv_(2) = u(2);
-  cmdv_.segment<ARM_DIMENSION>(BASE_DIMENSION) = u.segment<ARM_DIMENSION>(BASE_DIMENSION);
-
-  cmdv_.tail<PandaDim::GRIPPER_DIMENSION>().setZero();
-  panda_->setPdTarget(cmd_, cmdv_);
-  panda_->setGeneralizedForce(panda_->getNonlinearities(gravity_));
-
-  // gravity compensated object
-  object_->setGeneralizedForce(object_->getNonlinearities(gravity_));
-}
-
-void PandaRaisimDynamics::advance() {
-  // get contact state
-  double in_contact = -1;
-  for (const auto& contact : object_->getContacts()) {
-    if (!contact.skip() && !contact.isSelfCollision()) {
-      in_contact = 1;
-      break;
-    }
+    // set reference position
+    ref_->setPosition(cmd_ref_);
+    ref_->setLinearVelocity({0, 0, 0});
+    ref_->setAngularVelocity({0, 0, 0});
   }
 
-  // get external torque
-  get_external_torque(tau_ext_);
-
-  // step simulation
-  sim_.integrate();
-  t_ += sim_.getTimeStep();
-
-  panda_->getState(joint_p_, joint_v_);
-  object_->getState(object_p_, object_v_);
-
-  x_.head<BASE_ARM_GRIPPER_DIM>() = joint_p_;
-  x_.segment<BASE_ARM_GRIPPER_DIM>(BASE_ARM_GRIPPER_DIM) = joint_v_;
-  x_.segment<2 * OBJECT_DIMENSION>(2 * BASE_ARM_GRIPPER_DIM)(0) = object_p_(0);
-  x_.segment<2 * OBJECT_DIMENSION>(2 * BASE_ARM_GRIPPER_DIM)(1) = object_v_(0);
-  x_(2 * BASE_ARM_GRIPPER_DIM + 2 * OBJECT_DIMENSION) = in_contact;
-  x_.tail<TORQUE_DIMENSION>() = tau_ext_;
-}
-
-husky_panda_control::observation_t PandaRaisimDynamics::step(const husky_panda_control::input_t& u,
-                                              const double dt) {
-  set_control(u);
-  advance();
-  return x_;
-}
-
-void PandaRaisimDynamics::reset(const husky_panda_control::observation_t& x, const double t) {
-  // internal eigen state
-  t_ = t;
-  x_ = x;
-
-  // reset arm
-  panda_->setState(x_.head<BASE_ARM_GRIPPER_DIM>(),
-                   x_.segment<BASE_ARM_GRIPPER_DIM>(BASE_ARM_GRIPPER_DIM));
-  object_->setState(x_.segment<OBJECT_DIMENSION>(2 * BASE_ARM_GRIPPER_DIM),
-                    x_.segment<OBJECT_DIMENSION>(2 * BASE_ARM_GRIPPER_DIM + 1));
-}
-
-husky_panda_control::input_t PandaRaisimDynamics::get_zero_input(
-    const husky_panda_control::observation_t& x) {
-  return husky_panda_control::input_t::Zero(get_input_dimension());
-}
-
-void PandaRaisimDynamics::get_end_effector_pose(
-    Eigen::Vector3d& position, Eigen::Quaterniond& orientation) {
-  size_t frame_id = panda_->getFrameIdxByName("panda_grasp_joint");
-  raisim::Vec<3> pos;
-  raisim::Mat<3, 3> rot;
-  panda_->getFramePosition(frame_id, pos);
-  panda_->getFrameOrientation(frame_id, rot);
-  position = pos.e();
-  orientation = Eigen::Quaterniond(rot.e());
-}
-
-void PandaRaisimDynamics::get_handle_pose(Eigen::Vector3d& position,
-                                          Eigen::Quaterniond& orientation) {
-  size_t frame_id = object_->getFrameIdxByName(params_.object_handle_joint);
-  raisim::Vec<3> pos;
-  raisim::Mat<3, 3> rot;
-  object_->getFramePosition(frame_id, pos);
-  object_->getFrameOrientation(frame_id, rot);
-  position = pos.e();
-  orientation = Eigen::Quaterniond(rot.e());
-}
-
-std::vector<force_t> PandaRaisimDynamics::get_contact_forces() {
-  std::vector<force_t> forces;
-  for (const auto contact : panda_->getContacts()) {
-    if (contact.skip())
-      continue;  /// if the contact is internal, one contact point is set to
-                 /// 'skip'
-    if (contact.isSelfCollision()) continue;
-    force_t force;
-    force.force = -contact.getContactFrame().e().transpose() * contact.getImpulse().e() /
-                  sim_.getTimeStep();
-    force.position = contact.getPosition().e();
-    forces.push_back(force);
-  }
-  return forces;
-}
-
-void PandaRaisimDynamics::get_external_torque(Eigen::VectorXd& tau) {
-  tau.setZero((int)panda_->getDOF());
-  for (const auto contact : panda_->getContacts()) {
-    J_contact_.setZero();
-    if (!contact.skip() && !contact.isSelfCollision()) {
-      panda_->getDenseJacobian(contact.getlocalBodyIndex(),
-                               contact.getPosition(), J_contact_);
-
-      // clang-format off
-      // the base jacobian references the world frame, need to rotate
-      // to the base reference frame
-      J_contact_.topLeftCorner<3, 3>() << std::cos(x_(2)), std::sin(x_(2)), 0,
-                                          -std::sin(x_(2)), std::cos(x_(2)), 0,
-                                          0, 0, 1;
-      // transform contact to force --> to force in world frame --> to reaction torques
-      tau -= J_contact_.transpose() * contact.getContactFrame().e().transpose() * contact.getImpulse().e() / sim_.getTimeStep();
-      // clang-format on
-    }
+  husky_panda_control::observation_t HuskyPandaRaisimDynamics::step(const husky_panda_control::input_t &u,
+                                                                    const double dt)
+  {
+    set_control(u);
+    advance();
+    return x_;
   }
 
-  if (ee_force_applied_){
-    J_contact_.setZero();
-    panda_->getDenseFrameJacobian("panda_grasp_joint", J_contact_);
+  const husky_panda_control::observation_t HuskyPandaRaisimDynamics::get_state() const { return x_; }
 
-    // clang-format off
-    J_contact_.topLeftCorner<3, 3>() << std::cos(x_(2)), -std::sin(x_(2)), 0,
-                                        std::sin(x_(2)), std::cos(x_(2)), 0,
-                                        0, 0, 1;
-    // clang-format on
-    tau += J_contact_.transpose() * panda_->getExternalForce()[0].e();
+  void HuskyPandaRaisimDynamics::reset(const husky_panda_control::observation_t &x, const double t)
+  {
+    x_ = x;
+    t_ = t;
 
+    Eigen::VectorXd genco(husky_panda_->getGeneralizedCoordinateDim()), genve(husky_panda_->getDOF());
+    genco.setZero();
+    genve.setZero();
+    Eigen::Quaterniond q;
+    genco(0) = x(0); // x
+    genco(1) = x(1); // y
+    genco(2) = 0.2;  // z
+    q.x() = 0.0;
+    q.y() = 0.0;
+    q.z() = std::sin((x(2) / 2.0));
+    q.w() = std::cos((x(2) / 2.0));
+    q.normalize();
+    genco(3) = q.z(); // vector z
+    genco(6) = q.w(); // scalar w
+    genco.segment(GENERALIZED_COORDINATE, BASE_JOINT_DIMENSION).setZero();
+    genco.segment(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION, ARM_GRIPPER_DIMENSION) = x.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION);
+    husky_panda_->setState(genco, genve);
+
+    Eigen::VectorXd obstacle_pose(obstacle_->getDOF()), obstacle_velocity(obstacle_->getDOF());
+    obstacle_pose.setZero();
+    obstacle_pose(0) = 1.0;
+    obstacle_pose(2) = 1.0;
+    obstacle_velocity.setZero();
+    obstacle_->setState(obstacle_pose, obstacle_velocity);
+    return;
   }
-}
 
-void PandaRaisimDynamics::get_external_wrench(Eigen::VectorXd& wrench) {
-  wrench.setZero(6);
-  size_t frame_id = panda_->getFrameIdxByName("panda_grasp_joint");
-  raisim::Vec<3> pos;
-  raisim::Mat<3, 3> rot;
-  panda_->getFramePosition(frame_id, pos);
-  panda_->getFrameOrientation(frame_id, rot);
-
-  for (const auto contact : panda_->getContacts()) {
-    if (!contact.skip() && !contact.isSelfCollision()) {
-      // ee_frame <-- world_frame <-- force <-- impulse
-      Eigen::Vector3d force_ee_frame =
-          -rot.e().transpose() * contact.getContactFrame().e().transpose() *
-          contact.getImpulse().e() / sim_.getTimeStep();
-      Eigen::Vector3d relative_position =
-          rot.e().transpose() * (contact.getPosition().e() - pos.e());
-      wrench.head<3>() += force_ee_frame;
-      wrench.tail<3>() = relative_position.cross(force_ee_frame);
-    }
+  husky_panda_control::input_t HuskyPandaRaisimDynamics::get_zero_input(const observation_t &x)
+  {
+    return husky_panda_control::input_t::Zero(get_input_dimension());
   }
-  if (ee_force_applied_) {
-    wrench.head<3>() += panda_->getExternalForce()[0].e();
+
+  void HuskyPandaRaisimDynamics::get_end_effector_pose(Eigen::Vector3d& ee_position, Eigen::Quaterniond& ee_orientation)
+  {
+    size_t frame_id = husky_panda_->getFrameIdxByName("panda_hand_joint");
+    raisim::Vec<3> pos;
+    raisim::Mat<3, 3> rot;
+    husky_panda_->getFramePosition(frame_id, pos);
+    husky_panda_->getFrameOrientation(frame_id, rot);
+    ee_position = pos.e();
+    ee_orientation = Eigen::Quaterniond(rot.e());
+    return;
   }
-}
 
-void PandaRaisimDynamics::get_reference_link_pose(Eigen::Vector3d& position,
-                             Eigen::Quaterniond& orientation){
-  size_t frame_id = panda_->getFrameIdxByName("reference_link_joint");
-  raisim::Vec<3> pos;
-  raisim::Mat<3, 3> rot;
-  panda_->getFramePosition(frame_id, pos);
-  panda_->getFrameOrientation(frame_id, rot);
-  position = pos.e();
-  orientation = Eigen::Quaterniond(rot.e());
-}
+  void HuskyPandaRaisimDynamics::get_base_pose(Eigen::Vector3d& base_position, Eigen::Quaterniond& base_orientation)
+  {
+    raisim::Vec<3> pos;
+    raisim::Mat<3, 3> rot;
+    husky_panda_->getBodyPosition(0, pos);
+    husky_panda_->getBodyOrientation(0, rot);
+    base_position = pos.e();
+    base_orientation = Eigen::Quaterniond(rot.e());
+    return;
+  }
 
-void PandaRaisimDynamics::get_ee_jacobian(Eigen::MatrixXd& J){
-  J.setZero(6, (int)panda_->getDOF());
-  Eigen::MatrixXd J_linear;
-  J_linear.setZero(3, 12);
-  Eigen::MatrixXd J_angular;
-  J_angular.setZero(3, 12);
-
-  panda_->getDenseFrameJacobian("panda_grasp_joint", J_linear);
-  panda_->getDenseFrameRotationalJacobian("panda_grasp_joint", J_angular);
-  J.topRows(3) = J_linear;
-  J.bottomRows(3) = J_angular;
-  // clang-format off
-  J.topLeftCorner<3, 3>() << std::cos(x_(2)), -std::sin(x_(2)), 0,
-                             std::sin(x_(2)), std::cos(x_(2)), 0,
-                             0, 0, 1;
-  // clang-format on
-}
-
-void PandaRaisimDynamics::set_external_ee_force(const Eigen::Vector3d& f) {
-  ee_force_applied_ = (f.norm() > 1e-4);
-  auto& frame = panda_->getFrameByName("panda_grasp_joint");
-  panda_->setExternalForce(frame.parentId, raisim::ArticulatedSystem::Frame::WORLD_FRAME, f, raisim::ArticulatedSystem::Frame::BODY_FRAME, raisim::Vec<3>());
-}
-
-double PandaRaisimDynamics::get_object_displacement() const {
-  return x_.segment<OBJECT_DIMENSION>(2 * BASE_ARM_GRIPPER_DIM)(0);
-}
-
-void PandaRaisimDynamics::fix_object() {
-  object_->getState(object_p_, object_v_);
-  std::vector<raisim::Vec<2>> object_limits;
-  raisim::Vec<2> limit;
-  limit[0] = object_p_[0] - 0.001;
-  limit[1] = object_p_[0] + 0.001;
-  object_limits.push_back(limit);
-  object_->setJointLimits(object_limits);
-}
-
-void PandaRaisimDynamics::release_object() {
-  std::vector<raisim::Vec<2>> object_limits;
-  raisim::Vec<2> limit;
-  limit[0] = 0.0;
-  limit[1] = M_PI_2;
-  object_limits.push_back(limit);
-  object_->setJointLimits(object_limits);
-}
-
-}  // namespace husky_panda_control
+} // namespace panda_mobile

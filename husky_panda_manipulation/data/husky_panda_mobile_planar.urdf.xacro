@@ -4,24 +4,19 @@
     <xacro:arg name="fixed_base" default="false"/>
 
     <xacro:include filename="$(find husky_panda_manipulation)/data/panda.urdf.xacro"/>
-    <!-- <xacro:include filename="$(find husky_panda_manipulation)/data/planar_base.urdf.xacro"/> -->
+    <xacro:include filename="$(find husky_panda_manipulation)/data/planar_base.urdf.xacro"/>
     <xacro:include filename="$(find husky_panda_manipulation)/data/husky.urdf.xacro"/>
 
     <!--    Root world link-->
-    <!-- <link name="world"/> -->
+    <link name="world"/>
         
     <!-- husky base -->
     <xacro:unless value="$(arg fixed_base)">
-        <!-- <link name="odom"/>
         <joint name="world_joint" type="fixed">
             <parent link="world"/>
-            <child link="odom"/>
-        </joint> -->
-        <!-- <joint name="husky_base_flange" type="fixed">
-            <parent link="husky_base_root_link"/>
-            <child link="base_link"/>
-            <origin xyz="0 0 0.13228" rpy="0 0 0" />
-        </joint> -->
+            <child link="husky_base_root_link"/>
+        </joint>
+        <xacro:planar_base connect_to="base_link"/>
     </xacro:unless>
 
     <xacro:if value="$(arg fixed_base)">
