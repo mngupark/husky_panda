@@ -140,9 +140,8 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
   }
   else
   {
-    double w_base = 100.0;
+    double w_base = 10.0;
     double w_input = 5.0;
-    puts("test");
 
     husky_panda_rbdl::Pose current_base_pose = robot_model_.get_pose("base_link", x);
     Eigen::Matrix<double, 6, 1> base_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
