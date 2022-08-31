@@ -9,8 +9,8 @@
 namespace husky_panda_control {
 
 HuskyPandaMobileDynamics::HuskyPandaMobileDynamics(const ros::NodeHandle& nh, 
-    const std::string& robot_description, const std::string& obstacle_description)
-    : nh_(nh), HuskyPandaRaisimDynamics(robot_description, obstacle_description) {
+    const std::string& robot_description, const std::string& obstacle_description, bool holonomic)
+    : nh_(nh), HuskyPandaRaisimDynamics(robot_description, obstacle_description, holonomic), holonomic_(holonomic) {
   state_publisher_ =
       nh_.advertise<sensor_msgs::JointState>("/joint_states", 10);
   ee_publisher_ =
@@ -36,7 +36,7 @@ HuskyPandaMobileDynamics::HuskyPandaMobileDynamics(const ros::NodeHandle& nh,
 void HuskyPandaMobileDynamics::reset_to_default() {
   x_.setZero();
   x_.head<VIRTUAL_BASE_ARM_GRIPPER_DIMENSION>() << 0.0, 0.0, 0.2, 0.0, -0.52, 0.0, -1.785,
-      0.0, 1.10, 0.69, 0.04, 0.04;
+    0.0, 1.10, 0.69, 0.04, 0.04;
   reset(x_, 0.0);
   ROS_INFO_STREAM("Reset simulation ot default value: " << x_.transpose());
 }
@@ -44,31 +44,58 @@ void HuskyPandaMobileDynamics::reset_to_default() {
 void HuskyPandaMobileDynamics::publish_ros() {
   // update robot state visualization
   joint_state_.header.stamp = ros::Time::now();
-  for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++) {
-    joint_state_.position[j] = joint_p_(GENERALIZED_COORDINATE + j);
-    joint_state_.velocity[j] = joint_v_(GENERALIZED_VELOCITY + j);
-    // std::cout << "[" << joint_state_.position[j] << "]";
+  if (holonomic_)
+  {
+    for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
+    {
+      joint_state_.position[j] = 0.0;
+      joint_state_.velocity[j] = 0.0;
+    }
+    for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = joint_v_(j);
+    }
+    for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(VIRTUAL_BASE_DIMENSION + j);
+    }
   }
-  
-  raisim::Vec<3> base_angvel;
-  Eigen::Vector3d base_p, base_v;
-  base_v.setZero();
-  base_v(0) = joint_v_(0);
-  base_v(1) = joint_v_(1);
-  husky_panda_->getAngularVelocity(0, base_angvel);
-  base_v(2) = base_angvel.e()(2);
-  
-  for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++) {
-    joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
-    joint_state_.velocity[BASE_JOINT_DIMENSION + j] = base_v(j);
-    // std::cout << "[" << joint_state_.position[j] << "]";
+  else
+  {
+    for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
+    {
+      joint_state_.position[j] = joint_p_(GENERALIZED_COORDINATE + j);
+      joint_state_.velocity[j] = joint_v_(GENERALIZED_VELOCITY + j);
+      // std::cout << "[" << joint_state_.position[j] << "]";
+    }
+
+    raisim::Vec<3> base_angvel;
+    Eigen::Vector3d base_p, base_v;
+    base_v.setZero();
+    // base_v(0) = joint_v_(0);
+    // base_v(1) = joint_v_(1);
+    // husky_panda_->getAngularVelocity(0, base_angvel);
+    // base_v(2) = base_angvel.e()(2);
+    Eigen::Vector3d base_position;
+    Eigen::Quaterniond base_orientation;
+    get_base_pose(base_position, base_orientation);
+    x_(2) = base_orientation.toRotationMatrix().eulerAngles(0, 1, 2)(2);
+    for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = base_v(j);
+      // std::cout << "[" << joint_state_.position[j] << "]";
+    }
+    for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + j);
+      // std::cout << "[" << joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] << "]";
+    }
+    // std::cout << '\n';
   }
-  for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++) {
-    joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
-    joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + j);
-    // std::cout << "[" << joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] << "]";
-  }
-  // std::cout << '\n';
   state_publisher_.publish(joint_state_);
 
   // publish end effector pose

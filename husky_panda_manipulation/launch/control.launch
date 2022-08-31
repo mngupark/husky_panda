@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-
     <arg name="plot" default="false"/>
     <arg name="enable_obstacle" default="true"/>
+    <arg name="holonomic" default="true" />
     <arg name="debug" default="false"/>
 
     <arg name="experiment" default="false"/>
@@ -16,7 +16,8 @@
 
     <include file="$(find husky_panda_manipulation)/launch/load.launch"/>
     
-    <arg name="robot_description_floating_file" default="$(find husky_panda_manipulation)/data/husky_panda.urdf"/>
+    <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/husky_panda_planar.urdf" if="$(arg holonomic)"/>
+    <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/husky_panda.urdf" unless="$(arg holonomic)"/>
 
     <!-- Publish robot state (joints) as TF -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen">
@@ -27,11 +28,15 @@
         <remap from="joint_states" to="/joint_states"/>
     </node>
 
-    <node name="husky_panda_control" type="husky_panda_control" pkg="husky_panda_manipulation" output="screen" launch-prefix="$(arg launch_prefix)">
-        <rosparam command="load" file="$(find husky_panda_manipulation)/config/params.yaml"/>
+    <arg name="params_file" default="$(find husky_panda_manipulation)/config/holonomic_params.yaml" if="$(arg holonomic)"/>
+    <arg name="params_file" default="$(find husky_panda_manipulation)/config/nonholonomic_params.yaml" unless="$(arg holonomic)"/>
+
+    <node name="husky_panda_control" type="husky_panda_control" pkg="husky_panda_manipulation" output="screen" launch-prefix="$(arg launch_prefix)">    
+        <rosparam command="load" file="$(arg params_file)"/>
         <rosparam command="load" file="$(find husky_panda_manipulation)/config/filter_params.yaml"/>
-        <param name="config_file" value="$(find husky_panda_manipulation)/config/params.yaml"/>
-        <param name="robot_description_floating" value="$(arg robot_description_floating_file)"/>
+        <param name="config_file" value="$(arg params_file)"/>
+        <param name="robot_description_dynamics" value="$(arg robot_description_file)"/>
+        <param name="holonomic" value="$(arg holonomic)"/>
     </node>
 
     <include file="$(find husky_panda_manipulation)/launch/common.launch">

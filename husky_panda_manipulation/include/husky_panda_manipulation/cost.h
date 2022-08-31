@@ -21,7 +21,7 @@ class HuskyPandaMobileCost : public husky_panda_control::Cost {
  public:
   HuskyPandaMobileCost(const std::string& robot_description,
                   const double linear_weight, const double angular_weight,
-                  const double obstacle_radius, bool joint_limits = false);
+                  const double obstacle_radius, bool joint_limits = false, bool holonomic = false);
   ~HuskyPandaMobileCost() = default;
 
  private:
@@ -32,7 +32,7 @@ class HuskyPandaMobileCost : public husky_panda_control::Cost {
 
   std::string robot_description_;
   husky_panda_rbdl::RobotModel robot_model_;
-  std::string tracked_frame_ = "panda_hand";
+  std::string tracked_frame_ = "panda_grasp";
 
   Eigen::Matrix<double, 3, 3> Q_linear_;
   Eigen::Matrix<double, 3, 3> Q_angular_;
@@ -40,6 +40,8 @@ class HuskyPandaMobileCost : public husky_panda_control::Cost {
   double Q_obst_ = 100000;
   double Q_reach_ = 100000;
   bool obstacle_set_ = false;
+  Eigen::Vector3d distance_vector_;
+  bool holonomic_;
 
   Eigen::Matrix<double, 10, 1> joint_limits_lower_;
   Eigen::Matrix<double, 10, 1> joint_limits_upper_;

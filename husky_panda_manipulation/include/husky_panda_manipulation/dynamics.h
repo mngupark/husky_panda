@@ -19,12 +19,14 @@ namespace husky_panda_control {
 class HuskyPandaRaisimDynamics : public husky_panda_control::Dynamics {
 public:
   HuskyPandaRaisimDynamics(const std::string& robot_description,
-                           const std::string& obstacle_description);
+                           const std::string& obstacle_description,
+                           bool holonomic = false);
   ~HuskyPandaRaisimDynamics() = default;
 
 public:
   size_t get_input_dimension() override {
-    return HuskyPandaMobileDim::INPUT_DIMENSION;
+    if (holonomic_) return HuskyPandaMobileDim::INPUT_DIMENSION + 1;
+    else return HuskyPandaMobileDim::INPUT_DIMENSION;
   }
   size_t get_state_dimension() override {
     return HuskyPandaMobileDim::STATE_DIMENSION;
@@ -35,7 +37,7 @@ public:
   raisim::ArticulatedSystem* get_robot() { return husky_panda_; }
 
   husky_panda_control::dynamics_ptr create() override {
-    return std::make_shared<HuskyPandaRaisimDynamics>(robot_description_, obstacle_description_);
+    return std::make_shared<HuskyPandaRaisimDynamics>(robot_description_, obstacle_description_, holonomic_);
   }
 
   husky_panda_control::dynamics_ptr clone() const override {
@@ -88,5 +90,7 @@ protected:
   raisim::ArticulatedSystem* husky_panda_;
   raisim::ArticulatedSystem* obstacle_;
   raisim::Sphere* ref_;
+
+  bool holonomic_;
 };
 }  // namespace panda_mobile

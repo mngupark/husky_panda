@@ -12,8 +12,8 @@ namespace husky_panda_control {
 
 class HuskyPandaMobileControllerInterface : public husky_panda_ros::ControllerRos {
  public:
-  explicit HuskyPandaMobileControllerInterface(ros::NodeHandle& nh)
-      : ControllerRos(nh){};
+  explicit HuskyPandaMobileControllerInterface(ros::NodeHandle& nh, bool holonomic = false)
+      : holonomic_(holonomic), ControllerRos(nh){};
   ~HuskyPandaMobileControllerInterface() = default;
 
   bool init_ros() override;
@@ -24,7 +24,6 @@ class HuskyPandaMobileControllerInterface : public husky_panda_ros::ControllerRo
   geometry_msgs::PoseStamped get_pose_base(const husky_panda_control::observation_t& x);
   geometry_msgs::PoseStamped get_pose_end_effector_ros(
       const husky_panda_control::observation_t& x);
-
  private:
   void init_model(const std::string& robot_description);
   bool set_controller(husky_panda_control::solver_ptr& controller) override;
@@ -51,7 +50,7 @@ class HuskyPandaMobileControllerInterface : public husky_panda_ros::ControllerRo
   ros::Publisher optimal_trajectory_publisher_;
   ros::Publisher optimal_base_trajectory_publisher_;
   ros::Publisher obstacle_marker_publisher_;
-  ros::Publisher pinocchio_base_publisher_, pinocchio_ee_publisher_;
+  ros::Publisher dynamcis_model_pose_publisher_[STATE_DIMENSION];
 
   ros::Subscriber obstacle_subscriber_;
   ros::Subscriber ee_pose_desired_subscriber_;
@@ -60,7 +59,10 @@ class HuskyPandaMobileControllerInterface : public husky_panda_ros::ControllerRo
   nav_msgs::Path optimal_base_path_;
   geometry_msgs::PoseStamped obstacle_pose_;
   geometry_msgs::PoseStamped ee_desired_pose_;
+  geometry_msgs::PoseStamped dynamics_model_pose_[STATE_DIMENSION];
   visualization_msgs::Marker obstacle_marker_;
+
+  bool holonomic_;
 };
 
 }  // namespace panda_mobile

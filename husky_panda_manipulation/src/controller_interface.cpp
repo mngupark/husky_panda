@@ -33,10 +33,12 @@ bool HuskyPandaMobileControllerInterface::init_ros() {
       "/end_effector_pose_desired", 10,
       &HuskyPandaMobileControllerInterface::ee_pose_desired_callback, this);
 
-  pinocchio_base_publisher_ =
-      nh_.advertise<geometry_msgs::PoseStamped>("/pinocchio_base", 10);
-  pinocchio_ee_publisher_ =
-      nh_.advertise<geometry_msgs::PoseStamped>("/pinocchio_ee", 10);
+  for (size_t i = 0; i < STATE_DIMENSION; i++)
+  {
+    dynamcis_model_pose_publisher_[i] =
+      nh_.advertise<geometry_msgs::PoseStamped>("/dynamics_model_" + std::to_string(i), 10);
+    dynamics_model_pose_[i].header.frame_id = "world";
+  }
 
   if (!husky_panda_ros::getNonNegative(nh_, "obstacle_radius", obstacle_radius_))
     return false;
@@ -77,22 +79,24 @@ void HuskyPandaMobileControllerInterface::init_model(
 bool HuskyPandaMobileControllerInterface::set_controller(
     husky_panda_control::solver_ptr& controller) {
   // Params
-  std::string robot_description_planar, robot_description_floating, robot_description_model, obstacle_description;
+  std::string robot_description_planar, robot_description_dynamics, robot_description_model, obstacle_description;
   double linear_weight;
   double angular_weight;
   bool joint_limits;
   bool gaussian_policy;
+  bool holonomic;
 
   bool ok = true;
   ok &= husky_panda_ros::getString(nh_, "/robot_description_planar", robot_description_planar);
   ok &= husky_panda_ros::getString(nh_, "/robot_description_model", robot_description_model);
-  ok &= husky_panda_ros::getString(nh_, "robot_description_floating", robot_description_floating);
+  ok &= husky_panda_ros::getString(nh_, "robot_description_dynamics", robot_description_dynamics);
   ok &= husky_panda_ros::getString(nh_, "/obstacle_description", obstacle_description);
   ok &= husky_panda_ros::getNonNegative(nh_, "obstacle_radius", obstacle_radius_);
   ok &= husky_panda_ros::getNonNegative(nh_, "linear_weight", linear_weight);
   ok &= husky_panda_ros::getNonNegative(nh_, "angular_weight", angular_weight);
   ok &= husky_panda_ros::getBool(nh_, "joint_limits", joint_limits);
   ok &= husky_panda_ros::getBool(nh_, "gaussian_policy", gaussian_policy);
+  ok &= husky_panda_ros::getBool(nh_, "holonomic", holonomic);
   if (!ok) {
     ROS_ERROR("Failed to parse parameters and set controller.");
     return false;
@@ -101,8 +105,17 @@ bool HuskyPandaMobileControllerInterface::set_controller(
   // -------------------------------
   // config
   // -------------------------------
-  std::string config_file =
-      ros::package::getPath("husky_panda_manipulation") + "/config/params.yaml";
+  std::string config_file;
+  if (holonomic)
+  {
+    config_file =
+      ros::package::getPath("husky_panda_manipulation") + "/config/holonomic_params.yaml";
+  }
+  else
+  {
+    config_file =
+      ros::package::getPath("husky_panda_manipulation") + "/config/nonholonomic_params.yaml";
+  }
   if (!config_.init_from_file(config_file)) {
     ROS_ERROR_STREAM("Failed to init solver options from " << config_file);
     return false;
@@ -117,22 +130,30 @@ bool HuskyPandaMobileControllerInterface::set_controller(
   // dynamics
   // -------------------------------
   auto dynamics =
-      std::make_shared<HuskyPandaRaisimDynamics>(robot_description_floating, obstacle_description);
+      std::make_shared<HuskyPandaRaisimDynamics>(robot_description_dynamics, obstacle_description, holonomic);
 
   // -------------------------------
   // cost
   // -------------------------------
   auto cost = std::make_shared<HuskyPandaMobileCost>(robot_description_model,
                                                 linear_weight, angular_weight,
-                                                obstacle_radius_, joint_limits);
+                                                obstacle_radius_, joint_limits, holonomic);
 
   // -------------------------------
   // policy
   // -------------------------------
   std::shared_ptr<husky_panda_control::Policy> policy;
   if (gaussian_policy) {
-    policy = std::make_shared<husky_panda_control::GaussianPolicy>(
+    if (holonomic)
+    {
+      policy = std::make_shared<husky_panda_control::GaussianPolicy>(
+        int(HuskyPandaMobileDim::INPUT_DIMENSION + 1), config_);
+    }
+    else
+    {
+      policy = std::make_shared<husky_panda_control::GaussianPolicy>(
         int(HuskyPandaMobileDim::INPUT_DIMENSION), config_);
+    }
   } else {
     policy = std::make_shared<husky_panda_control::SplinePolicy>(
         int(HuskyPandaMobileDim::INPUT_DIMENSION), config_);
@@ -197,7 +218,7 @@ bool HuskyPandaMobileControllerInterface::update_reference() {
 husky_panda_rbdl::Pose HuskyPandaMobileControllerInterface::get_pose_end_effector(
     const Eigen::VectorXd& x) {
   robot_model_.update_state(x);
-  return robot_model_.get_pose("panda_hand", x);
+  return robot_model_.get_pose("panda_grasp", x);
 }
 
 geometry_msgs::PoseStamped
@@ -253,9 +274,13 @@ void HuskyPandaMobileControllerInterface::publish_ros() {
   optimal_trajectory_publisher_.publish(optimal_path_);
   optimal_base_trajectory_publisher_.publish(optimal_base_path_);
 
-  pinocchio_base_publisher_.publish(get_pose_base(get_controller()->dynamics_->get_state()));
-
-  pose_temp = robot_model_.get_pose("panda_hand", get_controller()->dynamics_->get_state());
-  husky_panda_rbdl::to_msg(pose_temp, pose_temp_ros.pose);
-  pinocchio_ee_publisher_.publish(pose_temp_ros);
+  for (size_t j = 0; j < STATE_DIMENSION; j++)
+  {
+    // rbdl
+    // pose_temp = robot_model_.get_pose(j, get_controller()->dynamics_->get_state());
+    pose_temp = robot_model_.get_pose(robot_model_.frame_id_[j], get_controller()->dynamics_->get_state());
+    husky_panda_rbdl::to_msg(pose_temp, dynamics_model_pose_[j].pose);
+    dynamics_model_pose_[j].header.stamp = ros::Time::now();
+    dynamcis_model_pose_publisher_[j].publish(dynamics_model_pose_[j]);
+  }
 }

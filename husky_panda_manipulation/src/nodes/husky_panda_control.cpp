@@ -22,13 +22,12 @@ int main(int argc, char** argv) {
 
   auto sequential = nh.param<bool>("sequential", false);
   auto max_sim_time = nh.param<double>("max_sim_time", 0.0);
+  auto holonomic = nh.param<bool>("holonomic", false);
 
-  std::string robot_description =
-      nh.param<std::string>("robot_description_floating", "");
-  std::string obstacle_description =
-      nh.param<std::string>("/obstacle_description", "");
-  auto simulation = std::make_shared<HuskyPandaMobileDynamics>(nh, robot_description, obstacle_description);
-  auto controller = std::make_shared<HuskyPandaMobileControllerInterface>(nh);
+  std::string robot_description = nh.param<std::string>("robot_description_dynamics", "");
+  std::string obstacle_description = nh.param<std::string>("/obstacle_description", "");
+  auto simulation = std::make_shared<HuskyPandaMobileDynamics>(nh, robot_description, obstacle_description, holonomic);
+  auto controller = std::make_shared<HuskyPandaMobileControllerInterface>(nh, holonomic);
 
   Eigen::VectorXd x = Eigen::VectorXd::Zero(HuskyPandaMobileDim::STATE_DIMENSION);
   auto initial_configuration =

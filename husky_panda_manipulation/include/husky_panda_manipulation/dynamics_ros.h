@@ -18,7 +18,7 @@ namespace husky_panda_control {
 class HuskyPandaMobileDynamics : public HuskyPandaRaisimDynamics {
  public:
   HuskyPandaMobileDynamics(const ros::NodeHandle& nh,
-      const std::string& robot_description, const std::string& obstacle_description);
+      const std::string& robot_description, const std::string& obstacle_description, bool holonomic = false);
   ~HuskyPandaMobileDynamics() = default;
 
  public:
@@ -35,6 +35,8 @@ class HuskyPandaMobileDynamics : public HuskyPandaRaisimDynamics {
   ros::Subscriber reference_subscriber_;
 
   sensor_msgs::JointState joint_state_;
+
+  bool holonomic_;
 };
 
 }  // namespace husky_panda_control
