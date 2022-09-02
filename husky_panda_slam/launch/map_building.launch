@@ -1,6 +1,6 @@
 <launch>
-    <arg name="slam_algorithm" default="slam_toolbox" doc="slam algorithm type [slam_toolbox, cartographer, gmapping]"/>
-    <arg name="gazebo" default="true" />
+    <arg name="slam_algorithm" default="slam_toolbox" doc="slam algorithm type [slam_toolbox, cartographer, gmapping, hector]"/>
+    <arg name="gazebo" default="false" />
     
     <arg name="cartographer_config" default="cartographer_config_gazebo.lua" if="$(arg gazebo)"/>
     <arg name="cartographer_config" default="cartographer_config.lua" unless="$(arg gazebo)"/>
@@ -13,17 +13,28 @@
     </group>
 
     <group if="$(eval slam_algorithm == 'cartographer')">
+        <arg name="map_file_name" default="door_experiment"/>
         <!-- cartographer_node -->
         <node pkg="cartographer_ros" type="cartographer_node" name="cartographer_node" args="-configuration_directory $(find husky_panda_slam)/config/$(arg slam_algorithm)
     -configuration_basename $(arg cartographer_config)" output="screen">
-            <remap from="/scan_1" to="/front_scan" />
-            <remap from="/scan_2" to="/rear_scan" />
+            <remap from="/scan" to="fake_scan"/>
+            <!-- <remap from="/scan_1" to="/front_scan" />
+    	    <remap from="/scan_2" to="/rear_scan" /> -->
             <remap from="/imu" to="/imu/data" />
             <remap from="/odom" to="/odometry/filtered" />
         </node>
 
         <!-- cartographer_occupancy_grid_node -->
         <node pkg="cartographer_ros" type="cartographer_occupancy_grid_node" name="cartographer_occupancy_grid_node" args="-resolution 0.025" />
+        <include file="$(find husky_panda_slam)/launch/merge_scan.launch" />
+        <!--
+            # Finish the first trajectory. No further data will be accepted on it.
+            rosservice call /finish_trajectory 0
+
+            # Ask Cartographer to serialize its current state.
+            # (press tab to quickly expand the parameter syntax)
+            rosservice call /write_state "{filename: '${HOME}/temp_catkin/src/husky_panda/husky_panda_slam/config/cartographer/maps/$(arg map_file_name).pbstream', include_unfinished_submaps: "true"}"
+        -->
     </group>
 
     <group if="$(eval slam_algorithm == 'gmapping')">
@@ -31,6 +42,40 @@
             <rosparam command="load" file="$(find husky_panda_slam)/config/$(arg slam_algorithm)/gmapping_config.cfg" />
             <remap from="/scan" to="/fake_scan"/>
         </node>
+        <include file="$(find husky_panda_slam)/launch/merge_scan.launch" />
+    </group>
+
+    <group if="$(eval slam_algorithm == 'hector')">
+        <arg name="pub_map_scanmatch_transform" default="false" />
+        <arg name="tf_map_scanmatch_transform_frame_name" default="scanmatcher_frame"/>
+        <arg name="base_frame" default="base_link"/>
+        <arg name="odom_frame" default="odom"/>
+        <arg name="pub_map_odom_transform" default="true"/>
+        <arg name="scan_subscriber_queue_size" default="5"/>
+        <arg name="scan_topic" default="fake_scan"/>
+        <arg name="map_size" default="150"/>
+        
+        <arg name="geotiff_map_file_path" default="$(find husky_panda_slam)/config/hector" />
+        <arg name="map_file_base_name" default="experiment_map" />
+
+        <param name="/use_sim_time" value="false"/>
+
+        <include file="$(find hector_mapping)/launch/mapping_default.launch">
+          <arg name="pub_map_scanmatch_transform" value="$(arg pub_map_scanmatch_transform)" />
+          <arg name="tf_map_scanmatch_transform_frame_name" value="$(arg tf_map_scanmatch_transform_frame_name)"/>
+          <arg name="base_frame" value="$(arg base_frame)"/>
+          <arg name="odom_frame" value="$(arg odom_frame)"/>
+          <arg name="pub_map_odom_transform" value="$(arg pub_map_odom_transform)"/>
+          <arg name="scan_subscriber_queue_size" value="$(arg scan_subscriber_queue_size)"/>
+          <arg name="scan_topic" value="$(arg scan_topic)"/>
+          <arg name="map_size" value="$(arg map_size)"/>
+        </include>
+
+        <!-- <include file="$(find hector_geotiff)/launch/geotiff_mapper.launch">
+          <arg name="map_file_path" value="$(arg geotiff_map_file_path)"/>
+          <arg name="map_file_base_name" value="$(arg map_file_base_name)"/>
+        </include> -->
+
         <include file="$(find husky_panda_slam)/launch/merge_scan.launch" />
     </group>
 
