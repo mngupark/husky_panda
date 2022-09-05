@@ -7,9 +7,10 @@
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/multibody/fwd.hpp>
 
-#include <rbdl/addons/urdfreader/urdfreader.h>
-#include <rbdl/rbdl.h>
-#include <rbdl/Model.h>
+// rbdl
+// #include <rbdl/addons/urdfreader/urdfreader.h>
+// #include <rbdl/rbdl.h>
+// #include <rbdl/Model.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -85,20 +86,40 @@ class RobotModel {
 
   /**
    *
+   * @param from_frame
+   * @param to_frame
+   * @param offset
+   * @param q
+   */
+  void get_offset(const std::string& from_frame, const std::string& to_frame,
+                  Eigen::Vector3d& offset, const Eigen::VectorXd& q);
+
+  /**
+   *
    * @param frame
    * @param q
    */
   Pose get_pose(const std::string& frame, const Eigen::VectorXd& q) const;
 
+  /**
+   *
+   * @param idx
+   * @param q
+   */
+  Pose get_pose(const size_t idx, const Eigen::VectorXd& q) const;
+
   void print_info() const;
 
+  std::vector<std::string> frame_id_;
  private:
   // pinocchio
-  // pinocchio::Model* model_;
-  // pinocchio::Data* data_;
+  pinocchio::Model* model_;
+  pinocchio::Data* data_;
 
-  RigidBodyDynamics::Model* model_;
-  Eigen::VectorXd q_;
-  Eigen::Matrix3d global_rotate_;
+  // rbdl
+  // RigidBodyDynamics::Model* model_;
+  // std::vector<unsigned int> body_id_;
+  // Eigen::VectorXd q_;
+  // Eigen::Matrix3d global_rotate_;
 };
 }  // namespace husky_panda_rbdl
