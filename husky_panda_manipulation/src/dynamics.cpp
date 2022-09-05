@@ -294,8 +294,8 @@ namespace husky_panda_control
       // raisim::VecDyn h = husky_panda_->getNonlinearities(gravity_);
       // husky_panda_->setGeneralizedForce(h);
 
-      double cmd_lin_x = u(0);//u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
-      double cmd_lin_y = u(1);//u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
+      double cmd_lin_x = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
+      double cmd_lin_y = u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
       double cmd_ang = u(2);
       cmdv_(GENERALIZED_VELOCITY + 0) = 1.0 / wheel_radius_ * (cmd_lin_x - cmd_lin_y - wheels_k_ * cmd_ang);
       cmdv_(GENERALIZED_VELOCITY + 1) = 1.0 / wheel_radius_ * (cmd_lin_x + cmd_lin_y - wheels_k_ * cmd_ang);
@@ -435,12 +435,40 @@ namespace husky_panda_control
   void HuskyPandaRaisimDynamics::get_base_pose(Eigen::Vector3d& base_position, Eigen::Quaterniond& base_orientation)
   {
     raisim::Vec<3> pos;
-    raisim::Mat<3, 3> rot;
-    husky_panda_->getBodyPosition(0, pos);
-    husky_panda_->getBodyOrientation(0, rot);
+    raisim::Vec<4> ori;
+    husky_panda_->getBasePosition(pos);
+    husky_panda_->getBaseOrientation(ori);
     base_position = pos.e();
-    base_orientation = Eigen::Quaterniond(rot.e()).normalized();
+    double yaw = to_euler_angles(ori.e())(2);
+    base_orientation = Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitX()) *
+		                   Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+		                   Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
+    base_orientation.normalize();
     return;
   }
+
+  Eigen::Vector3d HuskyPandaRaisimDynamics::to_euler_angles(Eigen::Vector4d q) {
+    //q = w + xi + yj + zk
+    Eigen::Vector3d angles;
+
+    // roll (x-axis rotation)
+    double sinr_cosp = 2 * (q[0] * q[1] + q[2] * q[3]);
+    double cosr_cosp = 1 - 2 * (q[1] * q[1] + q[2] * q[2]);
+    angles[0] = std::atan2(sinr_cosp, cosr_cosp);
+
+    // pitch (y-axis rotation)
+    double sinp = 2 * (q[0] * q[2] - q[3] * q[1]);
+    if (std::abs(sinp) >= 1)
+        angles[1] = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+    else
+        angles[1] = std::asin(sinp);
+
+    // yaw (z-axis rotation)
+    double siny_cosp = 2 * (q[0] * q[3] + q[1] * q[2]);
+    double cosy_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3]);
+    angles[2] = std::atan2(siny_cosp, cosy_cosp);
+
+    return angles;
+}
 
 } // namespace panda_mobile
