@@ -31,6 +31,7 @@ namespace husky_panda_control
 
     // set friction properties
     sim_.setMaterialPairProp("steel", "steel", 0.01, 0.15, 0.001);
+    sim_.setMaterialPairProp("gnd", "rubber", 0.01, 0.3, 0.01);
 
     // add ground
     auto ground = sim_.addGround(0.0, "gnd");

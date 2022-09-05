@@ -91,13 +91,10 @@
       <geometry>
         <cylinder length="0.1143" radius="0.1651"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
-    <contact>
-      <lateral_friction value="1.0"/>
-      <rolling_friction value="0.0"/>
-      <stiffness value="30000"/>
-      <damping value="1000"/>
-    </contact>
   </link>
   <joint name="front_left_wheel" type="continuous">
     <parent link="base_link"/>
@@ -138,13 +135,10 @@
       <geometry>
         <cylinder length="0.1143" radius="0.1651"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
-    <contact>
-      <lateral_friction value="1.0"/>
-      <rolling_friction value="0.0"/>
-      <stiffness value="30000"/>
-      <damping value="1000"/>
-    </contact>
   </link>
   <joint name="front_right_wheel" type="continuous">
     <parent link="base_link"/>
@@ -185,13 +179,10 @@
       <geometry>
         <cylinder length="0.1143" radius="0.1651"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
-    <contact>
-      <lateral_friction value="1.0"/>
-      <rolling_friction value="0.0"/>
-      <stiffness value="30000"/>
-      <damping value="1000"/>
-    </contact>
   </link>
   <joint name="rear_left_wheel" type="continuous">
     <parent link="base_link"/>
@@ -232,13 +223,10 @@
       <geometry>
         <cylinder length="0.1143" radius="0.1651"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
-    <contact>
-      <lateral_friction value="1.0"/>
-      <rolling_friction value="0.0"/>
-      <stiffness value="30000"/>
-      <damping value="1000"/>
-    </contact>
   </link>
   <joint name="rear_right_wheel" type="continuous">
     <parent link="base_link"/>

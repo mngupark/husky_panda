@@ -162,8 +162,8 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
     T.block<3, 1>(0, 3) << current_pose.translation;
     Eigen::Affine3d transform(T);
     base_error.tail(3) << -transform.linear() * base_error.tail(3);
-    cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
-    cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
+    // cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
+    // cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
     // cost += std::pow(u(0), 2) * w_base + std::pow(u(1), 2) * w_input;
   }
   return cost;

@@ -6,8 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /TF1/Frames1
-        - /Group1
       Splitter Ratio: 0.5
     Tree Height: 719
   - Class: rviz/Selection
@@ -64,11 +62,20 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base_footprint:
+        axle_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_root_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        chassis_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -77,7 +84,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        front_bumper_link:
+        front_cover_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -87,20 +94,31 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        front_lights_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         front_right_wheel_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        husky_base_root_link:
+        front_rocker_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         imu_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        inertial_link:
+        left_side_cover_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        mid_mount:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -171,7 +189,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        rear_bumper_link:
+        rear_cover_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -181,34 +199,27 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        rear_lights_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         rear_right_wheel_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        reference_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        top_chassis_link:
+        rear_rocker_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        top_plate_front_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        top_plate_link:
+        right_side_cover_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        top_plate_rear_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        user_rail_link:
+        top_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -236,23 +247,31 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_footprint:
+        axle_link:
           Value: false
         base_link:
+          Value: true
+        base_root_link:
+          Value: false
+        chassis_link:
           Value: false
         franka_mount_link:
           Value: false
-        front_bumper_link:
+        front_cover_link:
           Value: false
         front_left_wheel_link:
           Value: false
+        front_lights_link:
+          Value: false
         front_right_wheel_link:
           Value: false
-        husky_base_root_link:
+        front_rocker_link:
           Value: false
         imu_link:
           Value: false
-        inertial_link:
+        left_side_cover_link:
+          Value: false
+        mid_mount:
           Value: false
         panda_grasp:
           Value: false
@@ -281,31 +300,27 @@ Visualization Manager:
         panda_rightfinger:
           Value: false
         pivot:
-          Value: true
-        rear_bumper_link:
+          Value: false
+        rear_cover_link:
           Value: false
         rear_left_wheel_link:
           Value: false
+        rear_lights_link:
+          Value: false
         rear_right_wheel_link:
           Value: false
-        reference_link:
+        rear_rocker_link:
           Value: false
-        top_chassis_link:
+        right_side_cover_link:
           Value: false
-        top_plate_front_link:
-          Value: false
-        top_plate_link:
-          Value: false
-        top_plate_rear_link:
-          Value: false
-        user_rail_link:
+        top_link:
           Value: false
         world:
           Value: true
         x_slider:
-          Value: true
+          Value: false
         y_slider:
-          Value: true
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -313,32 +328,40 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
-          husky_base_root_link:
+          base_root_link:
             x_slider:
               y_slider:
                 pivot:
                   base_link:
-                    base_footprint:
-                      {}
-                    front_bumper_link:
-                      {}
-                    front_left_wheel_link:
-                      {}
-                    front_right_wheel_link:
-                      {}
-                    imu_link:
-                      {}
-                    inertial_link:
-                      {}
-                    rear_bumper_link:
-                      {}
-                    rear_left_wheel_link:
-                      {}
-                    rear_right_wheel_link:
-                      {}
-                    top_chassis_link:
-                      {}
-                    top_plate_link:
+                    chassis_link:
+                      axle_link:
+                        front_rocker_link:
+                          front_left_wheel_link:
+                            {}
+                          front_right_wheel_link:
+                            {}
+                        rear_rocker_link:
+                          rear_left_wheel_link:
+                            {}
+                          rear_right_wheel_link:
+                            {}
+                      front_cover_link:
+                        {}
+                      front_lights_link:
+                        {}
+                      imu_link:
+                        {}
+                      left_side_cover_link:
+                        {}
+                      rear_cover_link:
+                        {}
+                      rear_lights_link:
+                        {}
+                      right_side_cover_link:
+                        {}
+                      top_link:
+                        {}
+                    mid_mount:
                       franka_mount_link:
                         panda_link0:
                           panda_link1:
@@ -356,14 +379,6 @@ Visualization Manager:
                                               {}
                                             panda_rightfinger:
                                               {}
-                      reference_link:
-                        {}
-                      top_plate_front_link:
-                        {}
-                      top_plate_rear_link:
-                        {}
-                    user_rail_link:
-                      {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -695,10 +710,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6137970685958862
+      Pitch: -0.021202556788921356
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 5.6095871925354
+      Yaw: 4.364565849304199
     Saved: ~
 Window Geometry:
   Displays:

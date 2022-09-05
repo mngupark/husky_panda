@@ -60,6 +60,7 @@ public:
   husky_panda_control::input_t get_zero_input(const husky_panda_control::observation_t& x) override;
   void get_end_effector_pose(Eigen::Vector3d& ee_position, Eigen::Quaterniond& ee_orientation);
   void get_base_pose(Eigen::Vector3d& base_position, Eigen::Quaterniond& base_orientation);
+  Eigen::Vector3d to_euler_angles(Eigen::Vector4d q);
 
   const husky_panda_control::observation_t get_state() const override;
 

@@ -67,6 +67,9 @@
       <geometry>
         <cylinder length="0.079" radius="0.0759"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -102,6 +105,9 @@
       <geometry>
         <cylinder length="0.079" radius="0.0759"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -158,6 +164,9 @@
       <geometry>
         <cylinder length="0.079" radius="0.0759"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -193,6 +202,9 @@
       <geometry>
         <cylinder length="0.079" radius="0.0759"/>
       </geometry>
+      <material name="rubber">
+        <contact name="rubber"/>
+      </material>
     </collision>
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
