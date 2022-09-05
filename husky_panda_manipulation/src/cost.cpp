@@ -140,8 +140,8 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
   }
   else
   {
-    double w_base = 10.0;
-    double w_input = 5.0;
+    double w_linear = 1000.0;
+    double w_angular = 20.0;
 
     husky_panda_rbdl::Pose current_base_pose = robot_model_.get_pose("base_link", x);
     Eigen::Matrix<double, 6, 1> base_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
@@ -152,6 +152,7 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
     }
     // "difference" quaternion
     Eigen::Quaterniond error_quaternion(current_base_pose.rotation.inverse() * reference_pose.rotation);
+    error_quaternion.normalize();
     base_error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
     // Transform to base frame
     Eigen::Matrix4d T;
@@ -161,8 +162,9 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
     T.block<3, 1>(0, 3) << current_pose.translation;
     Eigen::Affine3d transform(T);
     base_error.tail(3) << -transform.linear() * base_error.tail(3);
-    cost += (std::pow(base_error(0), 2) * w_base + std::pow(base_error(1), 2) * w_base + std::pow(base_error(5), 2) * w_input);
-    cost += std::pow(u(0), 2) * w_base + std::pow(u(1), 2) * w_input;
+    cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
+    cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
+    // cost += std::pow(u(0), 2) * w_base + std::pow(u(1), 2) * w_input;
   }
   return cost;
 }

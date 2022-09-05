@@ -238,13 +238,13 @@ namespace husky_panda_control
     }
     else
     {
-      cmdv_(GENERALIZED_VELOCITY + 0) = u(0); // u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
-      cmdv_(GENERALIZED_VELOCITY + 2) = u(1); // u(2);
+      // u(0) = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
+      // u(2) = u(2);
       // non-holonomic differential drive constraints
-      cmdv_(GENERALIZED_VELOCITY + 0) = (cmdv_(GENERALIZED_VELOCITY + 0) - cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
-      cmdv_(GENERALIZED_VELOCITY + 1) = (cmdv_(GENERALIZED_VELOCITY + 0) + cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
-      cmdv_(GENERALIZED_VELOCITY + 2) = (cmdv_(GENERALIZED_VELOCITY + 0) - cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
-      cmdv_(GENERALIZED_VELOCITY + 3) = (cmdv_(GENERALIZED_VELOCITY + 0) + cmdv_(GENERALIZED_VELOCITY + 2) * wheel_separation_ / 2.0) / wheel_radius_;
+      cmdv_(GENERALIZED_VELOCITY + 0) = (u(0) - u(1) * wheel_separation_ / 2.0) / wheel_radius_;
+      cmdv_(GENERALIZED_VELOCITY + 1) = (u(0) + u(1) * wheel_separation_ / 2.0) / wheel_radius_;
+      cmdv_(GENERALIZED_VELOCITY + 2) = (u(0) - u(1) * wheel_separation_ / 2.0) / wheel_radius_;
+      cmdv_(GENERALIZED_VELOCITY + 3) = (u(0) + u(1) * wheel_separation_ / 2.0) / wheel_radius_;
       cmdv_.head<GENERALIZED_VELOCITY>().setZero();
       // cmdv_.segment(GENERALIZED_VELOCITY, BASE_JOINT_DIMENSION) = constrained_matrix_ * u.head(VIRTUAL_BASE_DIMENSION);
       cmdv_.segment(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION, ARM_DIMENSION) = u.segment(BASE_INPUT_DIMENSION, ARM_DIMENSION);
@@ -302,8 +302,7 @@ namespace husky_panda_control
       R << std::cos(x(2)), -std::sin(x(2)), 0,
           std::sin(x(2)), std::cos(x(2)), 0,
           0, 0, 1;
-      Eigen::Quaterniond q;
-      q = R;
+      Eigen::Quaterniond q(R);
       genco(3) = q.w();
       genco(4) = q.x();
       genco(5) = q.y();
@@ -335,7 +334,7 @@ namespace husky_panda_control
     husky_panda_->getFramePosition(frame_id, pos);
     husky_panda_->getFrameOrientation(frame_id, rot);
     ee_position = pos.e();
-    ee_orientation = Eigen::Quaterniond(rot.e());
+    ee_orientation = Eigen::Quaterniond(rot.e()).normalized();
     return;
   }
 
