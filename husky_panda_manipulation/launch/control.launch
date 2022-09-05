@@ -14,9 +14,13 @@
     <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
     <arg name="launch_prefix" value="" unless="$(arg debug)"/>
 
-    <include file="$(find husky_panda_manipulation)/launch/load.launch"/>
+    <include file="$(find husky_panda_manipulation)/launch/load.launch">
+        <arg name="holonomic" value="$(arg holonomic)" />
+    </include>
     
-    <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/husky_panda_planar.urdf" if="$(arg holonomic)"/>
+    <!-- Load robot description (for simulation) -->
+    <!-- <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/husky_panda_planar.urdf" if="$(arg holonomic)"/> -->
+    <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/ridgeback_panda.urdf" if="$(arg holonomic)"/>
     <arg name="robot_description_file" default="$(find husky_panda_manipulation)/data/husky_panda.urdf" unless="$(arg holonomic)"/>
 
     <!-- Publish robot state (joints) as TF -->

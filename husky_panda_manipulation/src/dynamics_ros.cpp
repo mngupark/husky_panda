@@ -46,20 +46,49 @@ void HuskyPandaMobileDynamics::publish_ros() {
   joint_state_.header.stamp = ros::Time::now();
   if (holonomic_)
   {
+    // prismatic x 2, revolute x 1
+    // for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
+    // {
+    //   joint_state_.position[j] = 0.0;
+    //   joint_state_.velocity[j] = 0.0;
+    // }
+    // for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
+    // {
+    //   joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
+    //   joint_state_.velocity[BASE_JOINT_DIMENSION + j] = joint_v_(j);
+    // }
+    // for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
+    // {
+    //   joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
+    //   joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(VIRTUAL_BASE_DIMENSION + j);
+    // }
+    
     for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
     {
-      joint_state_.position[j] = 0.0;
-      joint_state_.velocity[j] = 0.0;
+      joint_state_.position[j] = joint_p_(GENERALIZED_COORDINATE + j);
+      joint_state_.velocity[j] = joint_v_(GENERALIZED_VELOCITY + j);
     }
+
+    raisim::Vec<3> base_angvel;
+    Eigen::Vector3d base_p, base_v;
+    base_v.setZero();
+    base_v(0) = joint_v_(0);
+    base_v(1) = joint_v_(1);
+    husky_panda_->getAngularVelocity(0, base_angvel);
+    base_v(2) = base_angvel.e()(2);
+    Eigen::Vector3d base_position;
+    Eigen::Quaterniond base_orientation;
+    get_base_pose(base_position, base_orientation);
+    x_(2) = base_orientation.toRotationMatrix().eulerAngles(0, 1, 2)(2);
     for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
     {
       joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
-      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = joint_v_(j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = base_v(j);
     }
     for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
     {
       joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
-      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(VIRTUAL_BASE_DIMENSION + j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + j);
     }
   }
   else
@@ -94,7 +123,6 @@ void HuskyPandaMobileDynamics::publish_ros() {
       joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + j);
       // std::cout << "[" << joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] << "]";
     }
-    // std::cout << '\n';
   }
   state_publisher_.publish(joint_state_);
 

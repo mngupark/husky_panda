@@ -832,4 +832,11 @@
       <axis xyz="0 -1 0"/>
       <limit effort="20" lower="-0.001" upper="0.04" velocity="0.3"/>
   </joint>
+  <link name="panda_grasp"/>
+  <joint name="panda_grasp_joint" type="fixed">
+      <parent link="panda_hand"/>
+      <child link="panda_grasp"/>
+      <axis xyz="0 1 0"/>
+      <origin xyz="0 0 0.095" rpy="0 0 0"/> <!-- 0.106-->
+  </joint>
 </robot>

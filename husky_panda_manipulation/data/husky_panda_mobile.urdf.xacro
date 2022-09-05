@@ -18,7 +18,7 @@
             <child link="odom"/>
         </joint> -->
         <!-- <joint name="husky_base_flange" type="fixed">
-            <parent link="husky_base_root_link"/>
+            <parent link="base_root_link"/>
             <child link="base_link"/>
             <origin xyz="0 0 0.13228" rpy="0 0 0" />
         </joint> -->

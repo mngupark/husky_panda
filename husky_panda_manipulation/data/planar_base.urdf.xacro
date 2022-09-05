@@ -15,8 +15,8 @@
     </xacro:macro>
 
 
-    <xacro:macro name="planar_base" params="connect_to">
-        <link name="husky_base_root_link"/>
+    <xacro:macro name="planar_base" params="connect_to height">
+        <link name="base_root_link"/>
         <link name="x_slider">
             <inertial>
                 <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
@@ -40,7 +40,7 @@
         </link>
 
         <joint name="x_base_joint" type="prismatic">
-            <parent link="husky_base_root_link"/>
+            <parent link="base_root_link"/>
             <child link="x_slider"/>
             <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
             <axis xyz="1 0 0"/>
@@ -72,7 +72,7 @@
         <joint name="husky_base_flange" type="fixed">
             <parent link="pivot"/>
             <child link="${connect_to}"/>
-            <origin xyz="0 0 0.13228" rpy="0 0 0" />
+            <origin xyz="0 0 ${height}" rpy="0 0 0" />
         </joint>
     </xacro:macro>
 </xacro:robot>

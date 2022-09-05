@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
       <arg name="debug" default="false"/>
+      <arg name="holonomic" default="false" />
 
-      <arg name="robot_description_planar_file" default="$(find husky_panda_manipulation)/data/husky_panda_mobile_planar.urdf.xacro"/>
-      <arg name="robot_description_model_file" default="$(find husky_panda_manipulation)/data/husky_panda_mobile_model.urdf.xacro"/>
-      <!-- <arg name="robot_description_floating_file" default="$(find husky_panda_manipulation)/data/husky_panda/husky_panda.urdf"/> -->
+      <arg name="robot_description_planar_file" default="$(find husky_panda_manipulation)/data/ridgeback_panda_mobile_planar.urdf.xacro" if="$(arg holonomic)"/>
+      <arg name="robot_description_planar_file" default="$(find husky_panda_manipulation)/data/husky_panda_mobile_planar.urdf.xacro" unless="$(arg holonomic)"/>
+      <arg name="robot_description_model_file" default="$(find husky_panda_manipulation)/data/ridgeback_panda_mobile_model.urdf.xacro" if="$(arg holonomic)"/>
+      <arg name="robot_description_model_file" default="$(find husky_panda_manipulation)/data/husky_panda_mobile_model.urdf.xacro" unless="$(arg holonomic)"/>
       <arg name="obstacle_description_file" default="$(find husky_panda_manipulation)/data/objects/obstacle.urdf"/>
 
       <!-- Load planar & floating robot description (for ROS visualization) -->
@@ -13,48 +15,36 @@
       <!-- Load planar robot description (for dynamics) -->
       <param name="robot_description_model" command="$(find xacro)/xacro $(arg robot_description_model_file) collision_links:=false collision_hand:=true add_finger:=true custom_fingers:=false fixed_base:=false"/>
 
-      <!-- Load floating robot description (for simulation) -->
-      <!-- <param name="robot_description_floating" command="$(find xacro)/xacro $(arg robot_description_floating_file)"/> -->
-
       <!-- Load obstacle description -->
       <param name="obstacle_description" command="$(find xacro)/xacro $(arg obstacle_description_file)"/>
 
       <group if="$(arg debug)">
-            <!-- <node name="planar_robot_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
+            <node name="planar_robot_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
                   <remap from="robot_description" to="robot_description_planar"/>
                   <remap from="joint_states" to="/robot/planar/joint_states"/>
             </node>
             <node name="planar_robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
                   <remap from="robot_description" to="robot_description_planar"/>
                   <remap from="joint_states" to="/robot/planar/joint_states"/>
-            </node> -->
+            </node>
 
-            <node name="model_robot_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
+            <!-- <node name="model_robot_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
                   <remap from="robot_description" to="robot_description_model"/>
                   <remap from="joint_states" to="/robot/model/joint_states"/>
             </node>
             <node name="model_robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
                   <remap from="robot_description" to="robot_description_model"/>
                   <remap from="joint_states" to="/robot/model/joint_states"/>
-            </node>
-
-            <!-- <node name="floating_robot_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
-                  <remap from="robot_description" to="robot_description_floating"/>
-                  <remap from="joint_states" to="/robot/floating/joint_states"/>
-            </node>
-            <node name="floating_robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
-                  <remap from="robot_description" to="robot_description_floating"/>
-                  <remap from="joint_states" to="/robot/floating/joint_states"/>
             </node> -->
 
-            <node name="obstacle_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
+            <!-- <node name="obstacle_joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
                   <remap from="robot_description" to="obstacle_description"/>
                   <remap from="joint_states" to="/model/obstacle/joint_states"/>
             </node>
             <node name="obstacle_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
                   <remap from="robot_description" to="obstacle_description"/>
                   <remap from="joint_states" to="/model/obstacle/joint_states"/>
-            </node>
+            </node> -->
 
             <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find husky_panda_manipulation)/config/debug.rviz"/>
 

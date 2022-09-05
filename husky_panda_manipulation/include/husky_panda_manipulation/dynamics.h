@@ -83,6 +83,7 @@ protected:
   double dt_;
   double wheel_radius_multiplier_, wheel_separation_multiplier_;
   double wheel_radius_, wheel_separation_;
+  double wheels_k_, wheel_separation_x_, wheel_separation_y_;
   Eigen::MatrixXd constrained_matrix_;// constrained matrix
   raisim::Vec<3> gravity_;
 

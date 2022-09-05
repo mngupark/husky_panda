@@ -55,11 +55,36 @@ namespace husky_panda_control
     x_ = husky_panda_control::observation_t::Zero(STATE_DIMENSION);
     if (holonomic_)
     {
-      sim_state_dimension_ = state_dimension_;
+      // prismatic x 2, revolute x 1
+      // sim_state_dimension_ = state_dimension_;
+      // input_dimension_ = INPUT_DIMENSION + 1; // xdot, ydot, yawdot, qdot_arm, qdot_gripper
+      // sim_input_dimension_ = input_dimension_;
+      //
+      // sim_x_ = husky_panda_control::observation_t::Zero(STATE_DIMENSION);
+      sim_state_dimension_ = SIM_STATE_DIMENSION;
       input_dimension_ = INPUT_DIMENSION + 1; // xdot, ydot, yawdot, qdot_arm, qdot_gripper
       sim_input_dimension_ = input_dimension_;
       
-      sim_x_ = husky_panda_control::observation_t::Zero(STATE_DIMENSION);
+      sim_x_ = husky_panda_control::observation_t::Zero(SIM_STATE_DIMENSION);
+
+      wheel_radius_multiplier_ = 1.0;
+      wheel_separation_multiplier_ = 1.0;
+
+      wheel_separation_x_ = 0.638;
+      wheel_separation_y_ = 0.551;
+
+      wheels_k_ = (wheel_separation_x_ + wheel_separation_y_) / 2.0;
+
+      wheel_radius_ = 0.0759 * wheel_radius_multiplier_;
+
+      Eigen::VectorXd gc(husky_panda_->getGeneralizedCoordinateDim()), gv(husky_panda_->getDOF());
+      gc.setZero();
+      gv.setZero();
+      gc.segment<GENERALIZED_COORDINATE + BASE_JOINT_ARM_GRIPPER_DIMENSION>(0) << 
+      0, 0, 0.3, 1, 0, 0, 0, 0, 0, 0, 0, 0.0, -0.52, 0.0, -1.785, 0.0, 1.10, 0.69, 0.04, 0.04;
+
+      husky_panda_->setGeneralizedCoordinate(gc);
+      husky_panda_->setGeneralizedVelocity(gv);
     }
     else
     {
@@ -97,24 +122,47 @@ namespace husky_panda_control
   {
     if (holonomic_)
     {
-      joint_p_.setZero(STATE_DIMENSION);
-      joint_v_.setZero(INPUT_DIMENSION + 1);
-      cmd_.setZero(STATE_DIMENSION);
-      cmdv_.setZero(INPUT_DIMENSION + 1);
-      joint_p_gain_.setZero(INPUT_DIMENSION + 1);
-      joint_d_gain_.setZero(INPUT_DIMENSION + 1);
+      // prismatic x 2, revolute x 1
+      // joint_p_.setZero(STATE_DIMENSION);
+      // joint_v_.setZero(INPUT_DIMENSION + 1);
+      // cmd_.setZero(STATE_DIMENSION);
+      // cmdv_.setZero(INPUT_DIMENSION + 1);
+      // joint_p_gain_.setZero(INPUT_DIMENSION + 1);
+      // joint_d_gain_.setZero(INPUT_DIMENSION + 1);
+      //
+      // for (size_t i = 0; i < VIRTUAL_BASE_DIMENSION; i++)
+      // {
+      //   joint_p_gain_(i) = 0.0;
+      //   joint_d_gain_(i) = 1000.0;
+      // }
+      // for (size_t i = VIRTUAL_BASE_DIMENSION; i < VIRTUAL_BASE_DIMENSION + ARM_DIMENSION; i++)
+      // {
+      //   joint_p_gain_(i) = 0.0;
+      //   joint_d_gain_(i) = 100.0;
+      // }
+      // for (size_t i = VIRTUAL_BASE_DIMENSION + ARM_DIMENSION; i < VIRTUAL_BASE_ARM_GRIPPER_DIMENSION; i++)
+      // {
+      //   joint_p_gain_(i) = 100.0;
+      //   joint_d_gain_(i) = 50.0;
+      // }
+      joint_p_.setZero(SIM_STATE_DIMENSION);
+      joint_v_.setZero(SIM_INPUT_DIMENSION);
+      cmd_.setZero(SIM_STATE_DIMENSION);
+      cmdv_.setZero(SIM_INPUT_DIMENSION);
+      joint_p_gain_.setZero(SIM_INPUT_DIMENSION);
+      joint_d_gain_.setZero(SIM_INPUT_DIMENSION);
 
-      for (size_t i = 0; i < VIRTUAL_BASE_DIMENSION; i++)
-      {
-        joint_p_gain_(i) = 0.0;
-        joint_d_gain_(i) = 1000.0;
-      }
-      for (size_t i = VIRTUAL_BASE_DIMENSION; i < VIRTUAL_BASE_DIMENSION + ARM_DIMENSION; i++)
+      for (size_t i = GENERALIZED_VELOCITY; i < GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION; i++)
       {
         joint_p_gain_(i) = 0.0;
         joint_d_gain_(i) = 100.0;
       }
-      for (size_t i = VIRTUAL_BASE_DIMENSION + ARM_DIMENSION; i < VIRTUAL_BASE_ARM_GRIPPER_DIMENSION; i++)
+      for (size_t i = GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION; i < GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + ARM_DIMENSION; i++)
+      {
+        joint_p_gain_(i) = 0.0;
+        joint_d_gain_(i) = 100.0;
+      }
+      for (size_t i = GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + ARM_DIMENSION; i < SIM_INPUT_DIMENSION; i++)
       {
         joint_p_gain_(i) = 100.0;
         joint_d_gain_(i) = 50.0;
@@ -200,8 +248,17 @@ namespace husky_panda_control
     // set state from state of simulation
     if (holonomic_)
     {
-      x_.head(3) = joint_p_.head(3);
-      x_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION) = joint_p_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION);
+      // prismatic x 2, revolute x 1
+      // x_.head(3) = joint_p_.head(3);
+      // x_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION) = joint_p_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION);
+      Eigen::Vector3d base_position;
+      Eigen::Quaterniond base_orientation;
+      get_base_pose(base_position, base_orientation);
+      Eigen::Quaterniond temp_quat(joint_p_(3), joint_p_(4), joint_p_(5), joint_p_(6));
+      x_(0) = base_position(0);
+      x_(1) = base_position(1);
+      x_(2) = base_orientation.normalized().toRotationMatrix().eulerAngles(0, 1, 2)(2);
+      x_.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION) = joint_p_.segment(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION, ARM_GRIPPER_DIMENSION);
     }
     else
     {
@@ -226,14 +283,32 @@ namespace husky_panda_control
     // set command to simulator
     if (holonomic_)
     {
-      cmdv_(0) = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
-      cmdv_(1) = u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
-      cmdv_(2) = u(2);
-      cmdv_.segment<ARM_DIMENSION>(VIRTUAL_BASE_DIMENSION) = u.segment<ARM_DIMENSION>(VIRTUAL_BASE_DIMENSION);
+      // prismatic x 2, revolute x 1
+      // cmdv_(0) = u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
+      // cmdv_(1) = u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
+      // cmdv_(2) = u(2);
+      // cmdv_.segment<ARM_DIMENSION>(VIRTUAL_BASE_DIMENSION) = u.segment<ARM_DIMENSION>(VIRTUAL_BASE_DIMENSION);
+      //
+      // cmdv_.tail<GRIPPER_DIMENSION>().setZero();
+      //
+      // raisim::VecDyn h = husky_panda_->getNonlinearities(gravity_);
+      // husky_panda_->setGeneralizedForce(h);
 
+      double cmd_lin_x = u(0);//u(0) * std::cos(x_(2)) - u(1) * std::sin(x_(2));
+      double cmd_lin_y = u(1);//u(0) * std::sin(x_(2)) + u(1) * std::cos(x_(2));
+      double cmd_ang = u(2);
+      cmdv_(GENERALIZED_VELOCITY + 0) = 1.0 / wheel_radius_ * (cmd_lin_x - cmd_lin_y - wheels_k_ * cmd_ang);
+      cmdv_(GENERALIZED_VELOCITY + 1) = 1.0 / wheel_radius_ * (cmd_lin_x + cmd_lin_y - wheels_k_ * cmd_ang);
+      cmdv_(GENERALIZED_VELOCITY + 2) = 1.0 / wheel_radius_ * (cmd_lin_x - cmd_lin_y + wheels_k_ * cmd_ang);
+      cmdv_(GENERALIZED_VELOCITY + 3) = 1.0 / wheel_radius_ * (cmd_lin_x + cmd_lin_y + wheels_k_ * cmd_ang);
+      cmdv_.head<GENERALIZED_VELOCITY>().setZero();
+      // cmdv_.segment(GENERALIZED_VELOCITY, BASE_JOINT_DIMENSION) = constrained_matrix_ * u.head(VIRTUAL_BASE_DIMENSION);
+      cmdv_.segment(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION, ARM_DIMENSION) = u.segment(BASE_INPUT_DIMENSION, ARM_DIMENSION);
       cmdv_.tail<GRIPPER_DIMENSION>().setZero();
 
       raisim::VecDyn h = husky_panda_->getNonlinearities(gravity_);
+      // h.e().head(7)(2) = 0.0; // base z-axis force
+      h.e().head(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION).setZero(); // base non linear force
       husky_panda_->setGeneralizedForce(h);
     }
     else
@@ -287,8 +362,27 @@ namespace husky_panda_control
 
     if (holonomic_)
     {
-      husky_panda_->setState(x_.head<VIRTUAL_BASE_ARM_GRIPPER_DIMENSION>(),
-                   Eigen::VectorXd::Zero(VIRTUAL_BASE_ARM_GRIPPER_DIMENSION));
+      // prismatic x 2, revolute x 1
+      // husky_panda_->setState(x_.head<VIRTUAL_BASE_ARM_GRIPPER_DIMENSION>(),
+      //              Eigen::VectorXd::Zero(VIRTUAL_BASE_ARM_GRIPPER_DIMENSION));
+      Eigen::VectorXd genco(husky_panda_->getGeneralizedCoordinateDim()), genve(husky_panda_->getDOF());
+      genco.setZero();
+      genve.setZero();
+      genco(0) = x(0); // x
+      genco(1) = x(1); // y
+      genco(2) = 0.2;  // z
+      Eigen::Matrix3d R;
+      R << std::cos(x(2)), -std::sin(x(2)), 0,
+          std::sin(x(2)), std::cos(x(2)), 0,
+          0, 0, 1;
+      Eigen::Quaterniond q(R);
+      genco(3) = q.w();
+      genco(4) = q.x();
+      genco(5) = q.y();
+      genco(6) = q.z();
+      genco.segment(GENERALIZED_COORDINATE, BASE_JOINT_DIMENSION).setZero();
+      genco.segment(GENERALIZED_COORDINATE + BASE_JOINT_DIMENSION, ARM_GRIPPER_DIMENSION) = x.segment(VIRTUAL_BASE_DIMENSION, ARM_GRIPPER_DIMENSION);
+      husky_panda_->setState(genco, genve);
     }
     else
     {
@@ -345,7 +439,7 @@ namespace husky_panda_control
     husky_panda_->getBodyPosition(0, pos);
     husky_panda_->getBodyOrientation(0, rot);
     base_position = pos.e();
-    base_orientation = Eigen::Quaterniond(rot.e());
+    base_orientation = Eigen::Quaterniond(rot.e()).normalized();
     return;
   }
 
