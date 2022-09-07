@@ -135,36 +135,42 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
   }
 
   // differential drive cost
-  if (holonomic_)
-  {
-  }
-  else
-  {
-    double w_linear = 1000.0;
-    double w_angular = 20.0;
+  husky_panda_rbdl::Pose current_base_pose = robot_model_.get_pose("base_link", x);
+  Eigen::Vector3d base_to_ref_t = ref.head<3>() - current_base_pose.translation.head(3);
+  Eigen::Matrix<double, 6, 1> base_to_ref_error;
 
-    husky_panda_rbdl::Pose current_base_pose = robot_model_.get_pose("base_link", x);
-    Eigen::Matrix<double, 6, 1> base_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
-    // orientation error
-    if (reference_pose.rotation.coeffs().dot(current_base_pose.rotation.coeffs()) < 0.0)
+  base_to_ref_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
+  if ((base_to_ref_error.head(3).norm() > 1.0) || (base_to_ref_error.tail(3).norm() > 0.1))
+  {
+    if (holonomic_)
     {
-      current_base_pose.rotation.coeffs() << -current_base_pose.rotation.coeffs();
     }
-    // "difference" quaternion
-    Eigen::Quaterniond error_quaternion(current_base_pose.rotation.inverse() * reference_pose.rotation);
-    error_quaternion.normalize();
-    base_error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-    // Transform to base frame
-    Eigen::Matrix4d T;
-    T.setZero();
-    T(3, 3) = 1;
-    T.block<3, 3>(0, 0) << current_pose.rotation.toRotationMatrix();
-    T.block<3, 1>(0, 3) << current_pose.translation;
-    Eigen::Affine3d transform(T);
-    base_error.tail(3) << -transform.linear() * base_error.tail(3);
-    // cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
-    // cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
-    // cost += std::pow(u(0), 2) * w_base + std::pow(u(1), 2) * w_input;
+    else
+    {
+      double w_linear = 100.0;
+      double w_angular = 20.0;
+
+      Eigen::Matrix<double, 6, 1> base_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
+      // orientation error
+      if (reference_pose.rotation.coeffs().dot(current_base_pose.rotation.coeffs()) < 0.0)
+      {
+        current_base_pose.rotation.coeffs() << -current_base_pose.rotation.coeffs();
+      }
+      // "difference" quaternion
+      Eigen::Quaterniond error_quaternion(current_base_pose.rotation.inverse() * reference_pose.rotation);
+      error_quaternion.normalize();
+      base_error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+      // Transform to base frame
+      Eigen::Matrix4d T;
+      T.setZero();
+      T(3, 3) = 1;
+      T.block<3, 3>(0, 0) << current_pose.rotation.toRotationMatrix();
+      T.block<3, 1>(0, 3) << current_pose.translation;
+      Eigen::Affine3d transform(T);
+      base_error.tail(3) << -transform.linear() * base_error.tail(3);
+      cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
+      cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
+    }
   }
   return cost;
 }
