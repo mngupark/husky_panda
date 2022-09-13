@@ -11,36 +11,32 @@
 #include <std_msgs/Float64.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <geometry_msgs/PoseStamped.h>
 
 namespace husky_panda_control {
 
-class ManipulatorDynamicsRos : public PandaRaisimDynamics {
+class HuskyPandaMobileDynamics : public HuskyPandaRaisimDynamics {
  public:
-  ManipulatorDynamicsRos(const ros::NodeHandle& nh,
-                         const DynamicsParams& params);
-  ~ManipulatorDynamicsRos() = default;
+  HuskyPandaMobileDynamics(const ros::NodeHandle& nh,
+      const std::string& robot_description, const std::string& obstacle_description, bool holonomic = false);
+  ~HuskyPandaMobileDynamics() = default;
 
  public:
   void reset_to_default();
   void publish_ros();
+  void obstacle_callback(const geometry_msgs::PoseStampedConstPtr& msg);
+  void reference_callback(const geometry_msgs::PoseStampedConstPtr& msg);
 
  private:
   ros::NodeHandle nh_;
   ros::Publisher state_publisher_;
-  ros::Publisher object_state_publisher_;
-  ros::Publisher contact_forces_publisher_;
   ros::Publisher ee_publisher_;
-  ros::Publisher handle_publisher_;
-  ros::Publisher tau_ext_publisher_;
-  ros::Publisher power_publisher_;
+  ros::Subscriber obstacle_subscriber_;
+  ros::Subscriber reference_subscriber_;
 
   sensor_msgs::JointState joint_state_;
-  sensor_msgs::JointState object_state_;
-  visualization_msgs::Marker force_marker_;
-  std_msgs::Float64MultiArray tau_ext_msg_;
 
-  Eigen::VectorXd ff_tau_;
-  Eigen::VectorXd integral_term_;
+  bool holonomic_;
 };
 
 }  // namespace husky_panda_control

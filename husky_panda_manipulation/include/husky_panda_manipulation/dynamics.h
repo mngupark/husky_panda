@@ -1,55 +1,43 @@
-/*!
- * @file     dynamics_raisim.h
- * @author   Giuseppe Rizzi
- * @date     05.10.2020
- * @version  1.0
- * @brief    description
- */
 #pragma once
+
+#include <Eigen/Core>
+#include <cmath>
+#include <iostream>
+#include <stdexcept>
+#include <numeric>
 
 #include <raisim/World.hpp>
 #include <raisim/configure.hpp>
 #include "raisim/RaisimServer.hpp"
 
-#include <husky_panda_control/core/dynamics.h>
 #include <ros/package.h>
-#include <Eigen/Core>
-#include <cmath>
-#include <iostream>
-#include <numeric>
-#include <stdexcept>
 #include "husky_panda_manipulation/dimensions.h"
-#include "husky_panda_manipulation/params/dynamics_params.h"
+#include <husky_panda_control/core/dynamics.h>
 
 namespace husky_panda_control {
 
-struct force_t {
-  Eigen::Vector3d force;
-  Eigen::Vector3d position;
-};
+class HuskyPandaRaisimDynamics : public husky_panda_control::Dynamics {
+public:
+  HuskyPandaRaisimDynamics(const std::string& robot_description,
+                           const std::string& obstacle_description,
+                           bool holonomic = false);
+  ~HuskyPandaRaisimDynamics() = default;
 
-class PandaRaisimDynamics : public husky_panda_control::Dynamics {
- public:
-  PandaRaisimDynamics(const DynamicsParams& params);
-  ~PandaRaisimDynamics() = default;
- private:
-  void initialize_world(const std::string& robot_description,
-                        const std::string& object_description);
-  void initialize_pd();
-  void set_collision();
+public:
+  size_t get_input_dimension() override {
+    if (holonomic_) return HuskyPandaMobileDim::INPUT_DIMENSION + 1;
+    else return HuskyPandaMobileDim::INPUT_DIMENSION;
+  }
+  size_t get_state_dimension() override {
+    return HuskyPandaMobileDim::STATE_DIMENSION;
+  }
 
- protected:
-  const std::vector<raisim::Vec<2>> object_limits_;
+  raisim::World* get_world() { return &sim_; }
 
- public:
-  double get_dt() { return dt_; }
-  
-  size_t get_input_dimension() override { return input_dimension_; }
-  
-  size_t get_state_dimension() override { return state_dimension_; }
-  
+  raisim::ArticulatedSystem* get_robot() { return husky_panda_; }
+
   husky_panda_control::dynamics_ptr create() override {
-    return std::make_shared<PandaRaisimDynamics>(params_);
+    return std::make_shared<HuskyPandaRaisimDynamics>(robot_description_, obstacle_description_, holonomic_);
   }
 
   husky_panda_control::dynamics_ptr clone() const override {
@@ -58,80 +46,51 @@ class PandaRaisimDynamics : public husky_panda_control::Dynamics {
               << std::endl;
     return husky_panda_control::dynamics_ptr();
   }
+private:
+  void initialize_params();
+  void initialize_world(const std::string& robot_description, const std::string& obstacle_description);
+  void initialize_pd();
+  void set_collision();
 
+public:
   void reset(const husky_panda_control::observation_t& x, const double t) override;
-
   void advance();
-  
   void set_control(const husky_panda_control::input_t& u);
-
   husky_panda_control::observation_t step(const husky_panda_control::input_t& u, const double dt) override;
-  
   husky_panda_control::input_t get_zero_input(const husky_panda_control::observation_t& x) override;
-  
-  const husky_panda_control::observation_t get_state() const override { return x_; }
+  void get_end_effector_pose(Eigen::Vector3d& ee_position, Eigen::Quaterniond& ee_orientation);
+  void get_base_pose(Eigen::Vector3d& base_position, Eigen::Quaterniond& base_orientation);
 
-  raisim::World* get_world() { return &sim_; }
-  
-  raisim::ArticulatedSystem* get_panda() { return panda_; }
-  
-  raisim::ArticulatedSystem* get_object() { return object_; }
+  const husky_panda_control::observation_t get_state() const override;
 
-  std::vector<force_t> get_contact_forces();
-  
-  void get_end_effector_pose(Eigen::Vector3d& position,
-                             Eigen::Quaterniond& orientation);
+protected:
+  husky_panda_control::observation_t x_, sim_x_;
+  double pre_yaw_;
 
-  void get_handle_pose(Eigen::Vector3d& position,
-                       Eigen::Quaterniond& orientation);
+  std::string robot_description_, obstacle_description_;
 
-  // this is a link on royalpanda which is tracked by vicon
-  void get_reference_link_pose(Eigen::Vector3d& position,
-                               Eigen::Quaterniond& orientation);
-
-  double get_object_displacement() const;
-  
-  void get_external_torque(Eigen::VectorXd& tau_ext);
-  
-  void get_external_wrench(Eigen::VectorXd& wrench);
-  
-  void get_ee_jacobian(Eigen::MatrixXd& J);
-  
-  void set_external_ee_force(const Eigen::Vector3d& f);
-  
-  void fix_object();
-  
-  void release_object();
-
- protected:
   size_t robot_dof_;
-  size_t input_dimension_;
-  size_t state_dimension_;
+  size_t input_dimension_, sim_input_dimension_;
+  size_t state_dimension_, sim_state_dimension_;
 
-  husky_panda_control::observation_t x_;
-  Eigen::VectorXd tau_ext_;
   Eigen::VectorXd joint_p_, joint_v_;
-
- protected:
-  double dt_;
-  raisim::Vec<3> gravity_;
-  DynamicsParams params_;
+  Eigen::VectorXd obstacle_p_, obstacle_v_;
+  Eigen::VectorXd cmd_, cmdv_;
+  Eigen::VectorXd cmd_obstacle_;
+  raisim::Vec<VIRTUAL_BASE_DIMENSION> ref_p_, cmd_ref_;
+  Eigen::VectorXd joint_p_gain_, joint_d_gain_;
   
-  std::string robot_description_;
-  std::string object_description_;
+  double dt_;
+  double wheel_radius_multiplier_, wheel_separation_multiplier_;
+  double wheel_radius_, wheel_separation_;
+  Eigen::MatrixXd constrained_matrix_;// constrained matrix
+  raisim::Vec<3> gravity_;
 
   raisim::World sim_;
-  raisim::ArticulatedSystem* panda_;
-  raisim::ArticulatedSystem* object_;
+  raisim::ArticulatedSystem* husky_panda_;
+  raisim::ArticulatedSystem* obstacle_;
+  raisim::Sphere* ref_;
 
-
-  Eigen::VectorXd object_p_, object_v_;
-  Eigen::VectorXd cmd_, cmdv_;
-  Eigen::VectorXd joint_p_gain_, joint_d_gain_;
-  Eigen::VectorXd joint_p_desired_, joint_v_desired_;
-
-  bool ee_force_applied_;
-  Eigen::MatrixXd J_contact_;
-  Eigen::VectorXd torque_ext_;
+  bool holonomic_;
 };
-}  // namespace husky_panda_control
+}  // namespace panda_mobile

@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<robot name="obstacle" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <link name="world">  </link>
+  <link name="obstacle_base">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <joint name="world_to_obstalce_base" type="fixed">
+    <parent link="world"/>
+    <child link="obstacle_base"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+  <link name="x_slider_obstacle">
+    <inertial>
+        <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+        <mass value="0.01"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="y_slider_obstacle">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="z_slider_obstacle">
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="green">
+        <color rgba="1.0 0.421875 0.0390625 1.0"/>
+        <color rgba="255 108 10 255"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="obstacle">  </link>
+  <joint name="obstacle_joint" type="fixed">
+    <parent link="z_slider_obstacle"/>
+    <child link="obstacle"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <joint name="x_obstacle_joint" type="prismatic">
+    <parent link="obstacle_base"/>
+    <child link="x_slider_obstacle"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-10" upper="10" velocity="1.0" effort="1000.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_x_obstacle_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="x_obstacle_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="x_obstacle_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <joint name="y_obstacle_joint" type="prismatic">
+    <parent link="x_slider_obstacle"/>
+    <child link="y_slider_obstacle"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-10" upper="10" velocity="1.0" effort="1000.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_y_obstacle_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="y_obstacle_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="y_obstacle_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <joint name="z_obstacle_joint" type="prismatic">
+    <parent link="y_slider_obstacle"/>
+    <child link="z_slider_obstacle"/>
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-10" upper="10" velocity="1.0" effort="1000.0"/>
+    <dynamics damping="0.0" friction="10"/>
+  </joint>
+  <transmission name="transmision_z_obstacle_joint">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="z_obstacle_joint">
+      <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="z_obstacle_joint_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+</robot>

@@ -5,106 +5,98 @@
 #include "husky_panda_manipulation/dynamics_ros.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float64.h>
-#include <signal_logger/signal_logger.hpp>
 
 namespace husky_panda_control {
 
-ManipulatorDynamicsRos::ManipulatorDynamicsRos(const ros::NodeHandle& nh,
-                                               const DynamicsParams& params)
-    : nh_(nh), PandaRaisimDynamics(params) {
+HuskyPandaMobileDynamics::HuskyPandaMobileDynamics(const ros::NodeHandle& nh, 
+    const std::string& robot_description, const std::string& obstacle_description, bool holonomic)
+    : nh_(nh), HuskyPandaRaisimDynamics(robot_description, obstacle_description, holonomic), holonomic_(holonomic) {
   state_publisher_ =
       nh_.advertise<sensor_msgs::JointState>("/joint_states", 10);
-  object_state_publisher_ =
-      nh_.advertise<sensor_msgs::JointState>("/object/joint_state", 10);
-  contact_forces_publisher_ =
-      nh_.advertise<visualization_msgs::MarkerArray>("/contact_forces", 10);
   ee_publisher_ =
       nh_.advertise<geometry_msgs::PoseStamped>("/end_effector", 10);
-  handle_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>("/handle", 10);
-  tau_ext_publisher_ =
-      nh_.advertise<std_msgs::Float64MultiArray>("/tau_ext", 1);
-  power_publisher_ = nh_.advertise<std_msgs::Float64>("/power", 1);
-
+  obstacle_subscriber_ =
+      nh_.subscribe("/obstacle", 10,
+                    &HuskyPandaMobileDynamics::obstacle_callback, this);
+  reference_subscriber_ =
+      nh_.subscribe("/end_effector_pose_desired", 10,
+                    &HuskyPandaMobileDynamics::reference_callback, this);
   joint_state_.name = {
-      "x_base_joint", "y_base_joint",        "pivot_joint",
-      "panda_joint1", "panda_joint2",        "panda_joint3",
-      "panda_joint4", "panda_joint5",        "panda_joint6",
-      "panda_joint7", "panda_finger_joint1", "panda_finger_joint2"};
+      "front_left_wheel", "front_right_wheel",   "rear_left_wheel", "rear_right_wheel",
+      "x_base_joint",     "y_base_joint",        "pivot_joint",
+      "panda_joint1",     "panda_joint2",        "panda_joint3",
+      "panda_joint4",     "panda_joint5",        "panda_joint6",
+      "panda_joint7",     "panda_finger_joint1", "panda_finger_joint2"};
 
   joint_state_.position.resize(joint_state_.name.size());
   joint_state_.velocity.resize(joint_state_.name.size());
   joint_state_.header.frame_id = "world";
-  object_state_.name = {params_.articulation_joint};
-  object_state_.position.resize(1);
-
-  force_marker_.type = visualization_msgs::Marker::ARROW;
-  force_marker_.header.frame_id = "world";
-  force_marker_.action = visualization_msgs::Marker::ADD;
-  force_marker_.pose.orientation.w = 1.0;
-  force_marker_.scale.x = 0.005;
-  force_marker_.scale.y = 0.01;
-  force_marker_.scale.z = 0.02;
-  force_marker_.color.r = 1.0;
-  force_marker_.color.b = 0.0;
-  force_marker_.color.g = 0.0;
-  force_marker_.color.a = 1.0;
-
-  tau_ext_msg_.data.resize(get_panda()->getDOF());
-  ff_tau_.setZero(get_panda()->getDOF());
-  integral_term_.setZero(ARM_DIMENSION);
-
-  signal_logger::add(tau_ext_, "ground_truth_external_torque");
-  signal_logger::logger->updateLogger();
 }
 
-void ManipulatorDynamicsRos::reset_to_default() {
+void HuskyPandaMobileDynamics::reset_to_default() {
   x_.setZero();
-  x_.head<BASE_ARM_GRIPPER_DIM>() << 0.0, 0.0, 0.0, 0.0, -0.52, 0.0, -1.785,
-      0.0, 1.10, 0.69, 0.04, 0.04;
+  x_.head<VIRTUAL_BASE_ARM_GRIPPER_DIMENSION>() << 0.0, 0.0, 0.2, 0.0, -0.52, 0.0, -1.785,
+    0.0, 1.10, 0.69, 0.04, 0.04;
   reset(x_, 0.0);
   ROS_INFO_STREAM("Reset simulation ot default value: " << x_.transpose());
 }
 
-void ManipulatorDynamicsRos::publish_ros() {
+void HuskyPandaMobileDynamics::publish_ros() {
   // update robot state visualization
   joint_state_.header.stamp = ros::Time::now();
-  for (size_t j = 0; j < robot_dof_; j++) {
-    joint_state_.position[j] = x_(j);
-    joint_state_.velocity[j] = x_(j + robot_dof_);
+  if (holonomic_)
+  {
+    for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
+    {
+      joint_state_.position[j] = 0.0;
+      joint_state_.velocity[j] = 0.0;
+    }
+    for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = joint_v_(j);
+    }
+    for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(VIRTUAL_BASE_DIMENSION + j);
+    }
+  }
+  else
+  {
+    for (size_t j = 0; j < BASE_JOINT_DIMENSION; j++)
+    {
+      joint_state_.position[j] = joint_p_(GENERALIZED_COORDINATE + j);
+      joint_state_.velocity[j] = joint_v_(GENERALIZED_VELOCITY + j);
+      // std::cout << "[" << joint_state_.position[j] << "]";
+    }
+
+    raisim::Vec<3> base_angvel;
+    Eigen::Vector3d base_p, base_v;
+    base_v.setZero();
+    // base_v(0) = joint_v_(0);
+    // base_v(1) = joint_v_(1);
+    // husky_panda_->getAngularVelocity(0, base_angvel);
+    // base_v(2) = base_angvel.e()(2);
+    Eigen::Vector3d base_position;
+    Eigen::Quaterniond base_orientation;
+    get_base_pose(base_position, base_orientation);
+    x_(2) = base_orientation.toRotationMatrix().eulerAngles(0, 1, 2)(2);
+    for (size_t j = 0; j < VIRTUAL_BASE_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + j] = x_(j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + j] = base_v(j);
+      // std::cout << "[" << joint_state_.position[j] << "]";
+    }
+    for (size_t j = 0; j < ARM_GRIPPER_DIMENSION; j++)
+    {
+      joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = x_(VIRTUAL_BASE_DIMENSION + j);
+      joint_state_.velocity[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] = joint_v_(GENERALIZED_VELOCITY + BASE_JOINT_DIMENSION + j);
+      // std::cout << "[" << joint_state_.position[BASE_JOINT_DIMENSION + VIRTUAL_BASE_DIMENSION + j] << "]";
+    }
+    // std::cout << '\n';
   }
   state_publisher_.publish(joint_state_);
-
-  // update object state visualization
-  object_state_.header.stamp = ros::Time::now();
-  object_state_.position[0] = x_(2 * robot_dof_);
-  object_state_publisher_.publish(object_state_);
-
-  // visualize contact forces
-  std::vector<force_t> forces = get_contact_forces();
-  visualization_msgs::MarkerArray force_markers;
-  for (const auto& force : forces) {
-    force_marker_.points.resize(2);
-    force_marker_.points[0].x = force.position(0);
-    force_marker_.points[0].y = force.position(1);
-    force_marker_.points[0].z = force.position(2);
-    force_marker_.points[1].x = force.position(0) + force.force(0) / 10.0;
-    force_marker_.points[1].y = force.position(1) + force.force(1) / 10.0;
-    force_marker_.points[1].z = force.position(2) + force.force(2) / 10.0;
-    force_markers.markers.push_back(force_marker_);
-  }
-  contact_forces_publisher_.publish(force_markers);
-
-  // publish external torques
-  get_external_torque(tau_ext_);
-  for (size_t i = 0; i < get_panda()->getDOF(); i++) {
-    tau_ext_msg_.data[i] = tau_ext_[i];
-  }
-  tau_ext_publisher_.publish(tau_ext_msg_);
-
-  // publish power exchanged
-  std_msgs::Float64 power;
-  power.data = tau_ext_.transpose() * joint_v_;
-  power_publisher_.publish(power);
 
   // publish end effector pose
   Eigen::Vector3d ee_position;
@@ -121,22 +113,24 @@ void ManipulatorDynamicsRos::publish_ros() {
   pose_ros.pose.orientation.z = ee_orientation.z();
   pose_ros.pose.orientation.w = ee_orientation.w();
   ee_publisher_.publish(pose_ros);
-
-  // publish handle pose
-  Eigen::Vector3d handle_position;
-  Eigen::Quaterniond handle_orientation;
-  get_handle_pose(handle_position, handle_orientation);
-  geometry_msgs::PoseStamped handle_pose;
-  handle_pose.header.stamp = ros::Time::now();
-  handle_pose.header.frame_id = "world";
-  handle_pose.pose.position.x = handle_position.x();
-  handle_pose.pose.position.y = handle_position.y();
-  handle_pose.pose.position.z = handle_position.z();
-  handle_pose.pose.orientation.x = handle_orientation.x();
-  handle_pose.pose.orientation.y = handle_orientation.y();
-  handle_pose.pose.orientation.z = handle_orientation.z();
-  handle_pose.pose.orientation.w = handle_orientation.w();
-  handle_publisher_.publish(handle_pose);
 }
 
-}  // namespace husky_panda_control
+void HuskyPandaMobileDynamics::obstacle_callback(
+    const geometry_msgs::PoseStampedConstPtr& msg) {
+  geometry_msgs::PoseStamped pose = *msg;
+  cmd_obstacle_(0) = pose.pose.position.x;
+  cmd_obstacle_(1) = pose.pose.position.y;
+  cmd_obstacle_(2) = pose.pose.position.z;
+  return;
+}
+
+void HuskyPandaMobileDynamics::reference_callback(
+    const geometry_msgs::PoseStampedConstPtr& msg) {
+  geometry_msgs::PoseStamped pose = *msg;
+  cmd_ref_(0) = pose.pose.position.x;
+  cmd_ref_(1) = pose.pose.position.y;
+  cmd_ref_(2) = pose.pose.position.z;
+  return;
+}
+
+}  // namespace husky_panda_manipulation

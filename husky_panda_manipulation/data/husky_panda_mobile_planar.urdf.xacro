@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+
+    <xacro:arg name="fixed_base" default="false"/>
+
+    <xacro:include filename="$(find husky_panda_manipulation)/data/panda.urdf.xacro"/>
+    <xacro:include filename="$(find husky_panda_manipulation)/data/planar_base.urdf.xacro"/>
+    <xacro:include filename="$(find husky_panda_manipulation)/data/husky.urdf.xacro"/>
+
+    <!--    Root world link-->
+    <link name="world"/>
+        
+    <!-- husky base -->
+    <xacro:unless value="$(arg fixed_base)">
+        <joint name="world_joint" type="fixed">
+            <parent link="world"/>
+            <child link="husky_base_root_link"/>
+        </joint>
+        <xacro:planar_base connect_to="base_link"/>
+    </xacro:unless>
+
+    <xacro:if value="$(arg fixed_base)">
+        <joint name="world_joint" type="fixed">
+            <parent link="world"/>
+            <child link="base_link"/>
+             <origin xyz="-0.5265965085817698 -0.2806388380571893 0.0" rpy="0.000 0.000 -0.04332860681335808"/>
+        </joint>
+    </xacro:if>
+
+    <!--Mount panda on husky-->
+    <joint name="arm_mount_joint" type="fixed">
+        <parent link="top_plate_link"/>
+        <child link="franka_mount_link"/>
+        <origin xyz="0.25 0.0 0.0" rpy="0 0 0"/>
+
+    </joint>
+    <link name="franka_mount_link"/>
+    <xacro:panda_robot parent_link="franka_mount_link"/>
+
+    <!--    Add utility grasp frame-->
+    <xacro:if value="${add_finger}">
+        <link name="panda_grasp"/>
+        <joint name="panda_grasp_joint" type="fixed">
+            <parent link="panda_hand"/>
+            <child link="panda_grasp"/>
+            <axis xyz="0 1 0"/>
+            <origin xyz="0 0 0.095" rpy="0 0 0"/> <!-- 0.106-->
+        </joint>
+    </xacro:if>
+
+</robot>

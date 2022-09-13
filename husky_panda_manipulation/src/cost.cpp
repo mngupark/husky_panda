@@ -7,117 +7,166 @@
  */
 
 #include "husky_panda_manipulation/cost.h"
+
+#include <ros/ros.h>
+#include <cmath>
+
 #include <ros/package.h>
-#include "husky_panda_manipulation/dimensions.h"
 
-using namespace husky_panda_control;
+#define PANDA_UPPER_LIMITS \
+  2.0, 2.0, 6.28, 2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973, 0.04, 0.04
+#define PANDA_LOWER_LIMITS                                                 \
+  -2.0, -2.0, -6.28, -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, \
+      -2.8973, 0.0, 0.0
 
-PandaCost::PandaCost(const CostParams& params) : params_(params) {
-  robot_model_.init_from_xml(params_.robot_description);
-  object_model_.init_from_xml(params_.object_description);
+namespace husky_panda_control {
+
+HuskyPandaMobileCost::HuskyPandaMobileCost(const std::string& robot_description,
+                                 const double linear_weight,
+                                 const double angular_weight,
+                                 const double obstacle_radius,
+                                 bool joint_limits,
+                                 bool holonomic)
+    : robot_description_(robot_description),
+      linear_weight_(linear_weight),
+      angular_weight_(angular_weight),
+      obstacle_radius_(obstacle_radius),
+      joint_limits_(joint_limits),
+      holonomic_(holonomic) {
+  robot_model_.init_from_xml(robot_description);
+
+  Q_linear_ = Eigen::Matrix3d::Identity() * linear_weight;
+  Q_angular_ = Eigen::Matrix3d::Identity() * angular_weight;
+
+  distance_vector_.setZero();
+
+  // // TODO remove hard coded joint limits
+  // joint_limits_lower_ << PANDA_LOWER_LIMITS;
+  // joint_limits_upper_ << PANDA_UPPER_LIMITS;
 }
 
-husky_panda_control::cost_t PandaCost::compute_cost(const husky_panda_control::observation_t& x,
-                                     const husky_panda_control::input_t& u,
-                                     const husky_panda_control::reference_t& ref,
-                                     const double t) {
-  double cost = 0.0;
-  
-  int mode = ref(PandaDim::REFERENCE_DIMENSION - 1);
+husky_panda_control::cost_ptr HuskyPandaMobileCost::create() {
+  return std::make_shared<HuskyPandaMobileCost>(robot_description_, linear_weight_,
+                                           angular_weight_, obstacle_radius_,
+                                           joint_limits_, holonomic_);
+}
 
-  robot_model_.update_state(x.head<BASE_ARM_GRIPPER_DIM>());
-  object_model_.update_state(x.segment<1>(2 * BASE_ARM_GRIPPER_DIM));
-  
+husky_panda_control::cost_ptr HuskyPandaMobileCost::clone() const {
+  return std::make_shared<HuskyPandaMobileCost>(*this);
+}
 
-  // regularization cost
-  cost += params_.Qreg *
-          x.segment<BASE_ARM_GRIPPER_DIM>(BASE_ARM_GRIPPER_DIM).norm();
-  
-  // end effector reaching cost
-  if (mode == 0) {
-    Eigen::Vector3d ref_t = ref.head<3>();
-    Eigen::Quaterniond ref_q(ref.segment<4>(3));
-    robot_model_.get_error(params_.tracked_frame, ref_q, ref_t, error_);
-    cost +=
-        (error_.head<3>().transpose() * error_.head<3>()).norm() * params_.Qt;
-    cost +=
-        (error_.tail<3>().transpose() * error_.tail<3>()).norm() * params_.Qr;
+void HuskyPandaMobileCost::set_linear_weight(const double k) { Q_linear_ *= k; }
 
-    if (x(2 * BASE_ARM_GRIPPER_DIM + 2 * OBJECT_DIMENSION) > 0) cost += params_.Qc;
-  }
+void HuskyPandaMobileCost::set_angular_weight(const double k) { Q_angular_ *= k; }
 
-  // handle reaching cost
-  else if (mode == 1) {
-    error_ = mppi_pinocchio::diff(
-        robot_model_.get_pose(params_.tracked_frame),
-        object_model_.get_pose(params_.handle_frame) * params_.grasp_offset);
-    cost +=
-        (error_.head<3>().transpose() * error_.head<3>()).norm() * params_.Qt;
-    cost +=
-        (error_.tail<3>().transpose() * error_.tail<3>()).norm() * params_.Qr;
+void HuskyPandaMobileCost::set_obstacle_radius(const double r) {
+  obstacle_radius_ = r;
+}
 
-    // contact cost
-    if (x(2*BASE_ARM_GRIPPER_DIM + 2*OBJECT_DIMENSION) > 0) {
-      cost += params_.Qc;
-    }
-  }
+husky_panda_rbdl::Pose HuskyPandaMobileCost::get_current_pose(
+    const Eigen::VectorXd& x) {
+  return robot_model_.get_pose(tracked_frame_, x);
+}
 
-  // object displacement cost
-  else if (mode == 2) {
-    error_ = mppi_pinocchio::diff(
-        robot_model_.get_pose(params_.tracked_frame),
-        object_model_.get_pose(params_.handle_frame) * params_.grasp_offset);
-    cost +=
-        (error_.head<3>().transpose() * error_.head<3>()).norm() * params_.Qt2;
-    cost +=
-        (error_.tail<3>().transpose() * error_.tail<3>()).norm() * params_.Qr2;
+husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda_control::observation_t& x,
+                                           const husky_panda_control::input_t& u,
+                                           const husky_panda_control::reference_t& ref,
+                                           const double t) {
+  husky_panda_control::cost_t cost;
 
-    double object_error =
-        x(2 * BASE_ARM_GRIPPER_DIM) -
-        ref(REFERENCE_POSE_DIMENSION + REFERENCE_OBSTACLE);
+  // update model
+  robot_model_.update_state(x);
 
-    cost += object_error * object_error * params_.Q_obj;
-  }
-  
-  // power cost
-  cost += params_.Q_power * std::max(0.0, (-x.tail<12>().head<10>().transpose() * u.head<10>())(0) - params_.max_power); 
-  
-  // self collision cost
-  robot_model_.get_offset(params_.collision_link_0, params_.collision_link_1,
-                          collision_vector_);
-  cost += params_.Q_collision * std::pow(std::max(0.0, params_.collision_threshold - collision_vector_.norm()), 2);
-  
-  // TODO(giuseppe) hard coded for now to match the collision pairs of the safety filter
-  robot_model_.get_offset("panda_link0", "panda_link7", collision_vector_);
-  cost += params_.Q_collision * std::pow(std::max(0.0, params_.collision_threshold - collision_vector_.norm()), 2);
+  // target reaching cost
+  Eigen::Vector3d ref_t = ref.head<3>();
+  Eigen::Quaterniond ref_q(ref.segment<4>(3));
+  Eigen::Matrix<double, 6, 1> error;
+
+  husky_panda_rbdl::Pose current_pose = get_current_pose(x);
+  husky_panda_rbdl::Pose reference_pose(ref_t, ref_q);
+
+  error = husky_panda_rbdl::diff(current_pose, reference_pose);
+
+  // cost += error.head<3>().transpose() * Q_linear_* error.head<3>();
+  // cost += error.tail<3>().transpose() * Q_angular_* error.tail<3>();
+  cost += (error.head<3>().transpose() * error.head<3>()).norm() * linear_weight_;
+  cost += (error.tail<3>().transpose() * error.tail<3>()).norm() * angular_weight_;
+
+  if (cost < 0.001) cost += 10.0 * u.norm();
+
+  // obstacle avoidance cost
+  double obstacle_dist = (current_pose.translation - ref.tail<3>()).norm();
+  if (obstacle_dist < obstacle_radius_) cost += Q_obst_;
+
+  // // reach cost
+  // if (Q_reach_ > 0) {
+  //   double reach = (robot_model_.get_pose(tracked_frame_, x).translation -
+  //                   robot_model_.get_pose("panda_link0", x).translation)
+  //                      .head<2>()
+  //                      .norm();
+  //   if (reach > 1.0) {
+  //     cost += Q_reach_;
+  //   }
+  // }
 
   // arm reach cost
   double reach;
-  robot_model_.get_offset(params_.arm_base_frame, params_.tracked_frame,
-                          distance_vector_);
+  robot_model_.get_offset("panda_link0", tracked_frame_,
+                          distance_vector_, x);
   reach = distance_vector_.head<2>().norm();
-  if (reach > params_.max_reach) {
-    cost += params_.Q_reach +
-            params_.Q_reachs * (std::pow(reach - params_.max_reach, 2));
+  if (reach > 1.0) {
+    cost += 100 +
+            10 * (std::pow(reach - 1.0, 2)); // reach weight: 100, reach weight slope: 10, max reach: 1.0
   }
 
-  if (distance_vector_.norm() < params_.min_dist) {
-    cost += params_.Q_reach +
-            params_.Q_reachs * (std::pow(reach - params_.min_dist, 2));
+  if (distance_vector_.norm() < 0.0) {
+    cost += 100 +
+            10 * (std::pow(reach - 0.0, 2)); // min dist: 0.0
   }
-  
+
   // joint limits cost
-  for (size_t i = 0; i < 10; i++) {
-    if (x(i) < params_.lower_joint_limits[i])
-      cost += params_.Q_joint_limit +
-              params_.Q_joint_limit_slope *
-                  std::pow(params_.lower_joint_limits[i] - x(i), 2);
-
-    if (x(i) > params_.upper_joint_limits[i])
-      cost += params_.Q_joint_limit +
-              params_.Q_joint_limit_slope *
-                  std::pow(x(i) - params_.upper_joint_limits[i], 2);
+  if (joint_limits_) {
+    for (int i = 0; i < x.size(); i++) {
+      if (x(i) < joint_limits_lower_(i))
+        cost += 100 + 10 * std::pow(joint_limits_lower_(i) - x(i), 2);
+      if (x(i) > joint_limits_upper_(i))
+        cost += 100 + 10 * std::pow(x(i) - joint_limits_upper_(i), 2);
+    }
   }
 
+  // differential drive cost
+  if (holonomic_)
+  {
+  }
+  else
+  {
+    double w_linear = 1000.0;
+    double w_angular = 20.0;
+
+    husky_panda_rbdl::Pose current_base_pose = robot_model_.get_pose("base_link", x);
+    Eigen::Matrix<double, 6, 1> base_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
+    // orientation error
+    if (reference_pose.rotation.coeffs().dot(current_base_pose.rotation.coeffs()) < 0.0)
+    {
+      current_base_pose.rotation.coeffs() << -current_base_pose.rotation.coeffs();
+    }
+    // "difference" quaternion
+    Eigen::Quaterniond error_quaternion(current_base_pose.rotation.inverse() * reference_pose.rotation);
+    error_quaternion.normalize();
+    base_error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+    // Transform to base frame
+    Eigen::Matrix4d T;
+    T.setZero();
+    T(3, 3) = 1;
+    T.block<3, 3>(0, 0) << current_pose.rotation.toRotationMatrix();
+    T.block<3, 1>(0, 3) << current_pose.translation;
+    Eigen::Affine3d transform(T);
+    base_error.tail(3) << -transform.linear() * base_error.tail(3);
+    cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
+    cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
+    // cost += std::pow(u(0), 2) * w_base + std::pow(u(1), 2) * w_input;
+  }
   return cost;
 }
+
+}  // namespace panda_mobile
