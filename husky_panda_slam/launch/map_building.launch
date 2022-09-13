@@ -53,7 +53,7 @@
         <arg name="pub_map_odom_transform" default="true"/>
         <arg name="scan_subscriber_queue_size" default="5"/>
         <arg name="scan_topic" default="fake_scan"/>
-        <arg name="map_size" default="150"/>
+        <arg name="map_size" default="1024"/>
         
         <arg name="geotiff_map_file_path" default="$(find husky_panda_slam)/config/hector" />
         <arg name="map_file_base_name" default="experiment_map" />
