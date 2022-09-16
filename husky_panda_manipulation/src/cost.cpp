@@ -13,18 +13,14 @@
 
 #include <ros/package.h>
 
-#define PANDA_UPPER_LIMITS \
-  2.0, 2.0, 6.28, 2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973, 0.04, 0.04
-#define PANDA_LOWER_LIMITS                                                 \
-  -2.0, -2.0, -6.28, -2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, \
-      -2.8973, 0.0, 0.0
-
 namespace husky_panda_control {
 
 HuskyPandaMobileCost::HuskyPandaMobileCost(const std::string& robot_description,
                                  const double linear_weight,
                                  const double angular_weight,
                                  const double obstacle_radius,
+                                 std::vector<double> joint_limits_upper,
+                                 std::vector<double> joint_limits_lower,
                                  bool joint_limits,
                                  bool holonomic)
     : robot_description_(robot_description),
@@ -40,14 +36,24 @@ HuskyPandaMobileCost::HuskyPandaMobileCost(const std::string& robot_description,
 
   distance_vector_.setZero();
 
-  // // TODO remove hard coded joint limits
-  // joint_limits_lower_ << PANDA_LOWER_LIMITS;
-  // joint_limits_upper_ << PANDA_UPPER_LIMITS;
+  if (joint_limits == true)
+  {
+    if (joint_limits_upper.size() != ARM_GRIPPER_DIMENSION || joint_limits_lower.size() != ARM_GRIPPER_DIMENSION)
+      throw std::runtime_error("Wrong joint limits size!");
+    joint_limits_upper_.resize(ARM_GRIPPER_DIMENSION);
+    joint_limits_lower_.resize(ARM_GRIPPER_DIMENSION);
+    for (int i = 0; i < ARM_GRIPPER_DIMENSION; i++)
+    {
+      joint_limits_upper_[i] = joint_limits_upper[i];
+      joint_limits_lower_[i] = joint_limits_lower[i];
+    }
+  }
 }
 
 husky_panda_control::cost_ptr HuskyPandaMobileCost::create() {
   return std::make_shared<HuskyPandaMobileCost>(robot_description_, linear_weight_,
                                            angular_weight_, obstacle_radius_,
+                                           joint_limits_upper_, joint_limits_lower_,
                                            joint_limits_, holonomic_);
 }
 
@@ -92,7 +98,7 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
   cost += (error.head<3>().transpose() * error.head<3>()).norm() * linear_weight_;
   cost += (error.tail<3>().transpose() * error.tail<3>()).norm() * angular_weight_;
 
-  if (cost < 0.001) cost += 10.0 * u.norm();
+  // if (cost < 0.001) cost += 10.0 * u.norm();
 
   // obstacle avoidance cost
   double obstacle_dist = (current_pose.translation - ref.tail<3>()).norm();
@@ -126,11 +132,11 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
 
   // joint limits cost
   if (joint_limits_) {
-    for (int i = 0; i < x.size(); i++) {
-      if (x(i) < joint_limits_lower_(i))
-        cost += 100 + 10 * std::pow(joint_limits_lower_(i) - x(i), 2);
-      if (x(i) > joint_limits_upper_(i))
-        cost += 100 + 10 * std::pow(x(i) - joint_limits_upper_(i), 2);
+    for (int i = VIRTUAL_BASE_DIMENSION; i < x.size(); i++) {
+      if (x(i) < joint_limits_lower_[i - VIRTUAL_BASE_DIMENSION])
+        cost += 100 + 10 * std::pow(joint_limits_lower_[i - VIRTUAL_BASE_DIMENSION] - x(i), 2);
+      if (x(i) > joint_limits_upper_[i - VIRTUAL_BASE_DIMENSION])
+        cost += 100 + 10 * std::pow(x(i) - joint_limits_upper_[i - VIRTUAL_BASE_DIMENSION], 2);
     }
   }
 
@@ -140,7 +146,7 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
   Eigen::Matrix<double, 6, 1> base_to_ref_error;
 
   base_to_ref_error = husky_panda_rbdl::diff(current_base_pose, reference_pose);
-  if ((base_to_ref_error.head(3).norm() > 1.0) || (base_to_ref_error.tail(3).norm() > 0.1))
+  if ((base_to_ref_error.head(2).norm() > 1.0) || (base_to_ref_error.tail(3).norm() > 0.1))
   {
     if (holonomic_)
     {
@@ -168,9 +174,14 @@ husky_panda_control::cost_t HuskyPandaMobileCost::compute_cost(const husky_panda
       T.block<3, 1>(0, 3) << current_pose.translation;
       Eigen::Affine3d transform(T);
       base_error.tail(3) << -transform.linear() * base_error.tail(3);
-      cost += (base_error.head<3>().transpose() * base_error.head<3>()).norm() * w_linear;
+      cost += (base_error.head<2>().transpose() * base_error.head<2>()).norm() * w_linear;
       cost += (base_error.tail<3>().transpose() * base_error.tail<3>()).norm() * w_angular;
     }
+  }
+  else
+  {
+    cost += (error.head<3>().transpose() * error.head<3>()).norm() * linear_weight_;
+    cost += (error.tail<3>().transpose() * error.tail<3>()).norm() * angular_weight_;
   }
   return cost;
 }

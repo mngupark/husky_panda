@@ -45,6 +45,8 @@ linear_weight: 100.0
 angular_weight: 10.0
 obstacle_radius: 0.15
 joint_limits: false
+joint_limits_upper: [ 2.8973,  1.7628,  2.8973,  0.0698,  2.8973,  3.7525,  2.8973, 0.04, 0.04]
+joint_limits_lower: [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,  0.0, 0.0]
 holonomic: false
 gaussian_policy: true
 

@@ -21,7 +21,9 @@ class HuskyPandaMobileCost : public husky_panda_control::Cost {
  public:
   HuskyPandaMobileCost(const std::string& robot_description,
                   const double linear_weight, const double angular_weight,
-                  const double obstacle_radius, bool joint_limits = false, bool holonomic = false);
+                  const double obstacle_radius,
+                  std::vector<double> joint_limits_upper, std::vector<double> joint_limits_lower,
+                  bool joint_limits = false, bool holonomic = false);
   ~HuskyPandaMobileCost() = default;
 
  private:
@@ -43,8 +45,8 @@ class HuskyPandaMobileCost : public husky_panda_control::Cost {
   Eigen::Vector3d distance_vector_;
   bool holonomic_;
 
-  Eigen::Matrix<double, 10, 1> joint_limits_lower_;
-  Eigen::Matrix<double, 10, 1> joint_limits_upper_;
+  std::vector<double> joint_limits_lower_;
+  std::vector<double> joint_limits_upper_;
 
  public:
   husky_panda_control::cost_ptr create() override;

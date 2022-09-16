@@ -83,6 +83,7 @@ bool HuskyPandaMobileControllerInterface::set_controller(
   double linear_weight;
   double angular_weight;
   bool joint_limits;
+  std::vector<double> joint_limits_upper, joint_limits_lower;
   bool gaussian_policy;
   bool holonomic;
 
@@ -95,6 +96,16 @@ bool HuskyPandaMobileControllerInterface::set_controller(
   ok &= husky_panda_ros::getNonNegative(nh_, "linear_weight", linear_weight);
   ok &= husky_panda_ros::getNonNegative(nh_, "angular_weight", angular_weight);
   ok &= husky_panda_ros::getBool(nh_, "joint_limits", joint_limits);
+  if (!nh_.getParam("joint_limits_upper", joint_limits_upper) ||
+      joint_limits_upper.size() != ARM_GRIPPER_DIMENSION) {
+    ROS_ERROR("Failed to get joint_limits_upper parameter");
+    return false;
+  }
+  if (!nh_.getParam("joint_limits_lower", joint_limits_lower) ||
+      joint_limits_lower.size() != ARM_GRIPPER_DIMENSION) {
+    ROS_ERROR("Failed to get joint_limits_upper parameter");
+    return false;
+  }
   ok &= husky_panda_ros::getBool(nh_, "gaussian_policy", gaussian_policy);
   ok &= husky_panda_ros::getBool(nh_, "holonomic", holonomic);
   if (!ok) {
@@ -137,7 +148,9 @@ bool HuskyPandaMobileControllerInterface::set_controller(
   // -------------------------------
   auto cost = std::make_shared<HuskyPandaMobileCost>(robot_description_model,
                                                 linear_weight, angular_weight,
-                                                obstacle_radius_, joint_limits, holonomic);
+                                                obstacle_radius_,
+                                                joint_limits_upper, joint_limits_lower,
+                                                joint_limits, holonomic);
 
   // -------------------------------
   // policy
