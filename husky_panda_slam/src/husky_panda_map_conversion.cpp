@@ -7,6 +7,7 @@ HuksyPandaMapConverter::HuksyPandaMapConverter()
     initialize_map_configure(file_name_.c_str());
     ros::NodeHandle nh("~");
     map_sub_ = nh_.subscribe<nav_msgs::OccupancyGrid>("/map", 10, &HuksyPandaMapConverter::map_callback, this);
+    path_pub_ = nh_.advertise<nav_msgs::Path>("/door_path", 1);
 
     ros::spin();
 }
@@ -46,7 +47,7 @@ void HuksyPandaMapConverter::generate_map(const nav_msgs::OccupancyGrid::ConstPt
     std::cout << "width: " << map->info.width << "\theight: " << map->info.height << '\n';
     std::cout << "origin: " << map->info.origin.position.x << ", " << map->info.origin.position.y << ", " << map->info.origin.position.z << '\n';
     std::cout << "resolution: " << map->info.resolution << '\n';
-
+    std::cout << "size: " << map->data.size() <<'\n';
     // the origin of map = the origin of the robot calculated from lower-left pose of the map
     float yaw = atan2(2.0 * 
         (map->info.origin.orientation.y * map->info.origin.orientation.z + map->info.origin.orientation.w * map->info.origin.orientation.x),
@@ -66,21 +67,85 @@ void HuksyPandaMapConverter::generate_map(const nav_msgs::OccupancyGrid::ConstPt
         -map->info.origin.position.x, -map->info.origin.position.y, yaw
     );
     write(map_fd_, info_buf, strlen(info_buf));
-
-    char buf[256];
-    for (auto i = 0; i < map->info.width; i++)
+    // for (int i = 0; i < map->info.height; i++)
+    // {
+    //     char buf[2048];
+    //     // for (int j = map->info.width - 1; j > -1; j--)
+    //     for (int j = 0; j < map->info.width; j++)
+    //     {
+    //         memset(buf, 0, sizeof(buf));
+    //         signed int num = (signed char)map->data[i * map->info.width + j];
+    //         // if (num != -1)
+    //         // {
+    //             sprintf(buf, "%3d ", num);
+    //             write(map_fd_, buf, strlen(buf));
+    //         // }
+    //     }
+    //     memset(buf, 0, sizeof(buf));
+    //     strcpy(buf, "\n");
+    //     write(map_fd_, buf, strlen(buf));
+    // }
+    for (int i = (map->info.width * map->info.height); i > 0; i = i - map->info.height)
     {
-        for (auto j = 0; j < map->info.height; j++)
+        char buf[2048];
+        for (int j = 0; j < map->info.width; j++)
         {
-
-            int num = (unsigned char)map->data[i * map->info.width + j];
+            memset(buf, 0, sizeof(buf));
+            signed int num = (signed char)map->data[i + j];
             sprintf(buf, "%3d ", num);
             write(map_fd_, buf, strlen(buf));
         }
+        memset(buf, 0, sizeof(buf));
         strcpy(buf, "\n");
         write(map_fd_, buf, strlen(buf));
     }
     close(map_fd_);
+
+    // path generation
+    // FILE* fp = NULL;
+	// char path_line[100];
+    //
+	// fp = fopen("/home/dyros/temp_catkin/src/mpc_test/data/trajectory/Path.txt", "r");
+    //
+	// if (fp == NULL) {
+	// 	fprintf(stderr, "파일 file.txt를 열 수 없습니다.\n");
+	// 	exit(0);
+	// }
+    //
+    // path_msgs_.header.frame_id = "map";
+    // path_msgs_.header.stamp = ros::Time::now();
+    //
+	// while((fgets(path_line, sizeof(path_line), fp)) != NULL)
+    // {
+    //     char * tok = ",";
+    //     char * ptr = strtok(path_line, tok);
+    //     double path[3];
+    //     path[0] = atof(ptr);
+    //     int cnt = 1;
+    //     while (cnt < 3)
+    //     {
+    //         ptr = strtok(NULL, tok);
+    //         path[cnt++] = atof(ptr);
+    //     }
+    //     geometry_msgs::PoseStamped pose;
+    //     pose.header.frame_id = "map";
+    //     pose.header.stamp = ros::Time::now();
+    //     pose.pose.position.x = path[0] + map->info.origin.position.x;
+    //     pose.pose.position.y = path[1] + map->info.origin.position.y;
+    //     pose.pose.position.z = 0.0;
+    //     tf2::Quaternion q;
+    //     q.setRPY( 0, 0, path[2] );
+    //     tf2::convert(q, pose.pose.orientation);
+    //
+    //     path_msgs_.poses.push_back(pose);
+    // }
+    //
+    // while (ros::ok())
+    // {
+    //     path_pub_.publish(path_msgs_);
+    // }
+    //
+	// fclose(fp);
     ros::shutdown(); // create an environment file only once
     return;
 }

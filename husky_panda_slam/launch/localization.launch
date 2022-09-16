@@ -1,7 +1,35 @@
 <launch>
-    <node pkg="slam_toolbox" type="localization_slam_toolbox_node" name="slam_toolbox" output="screen">
-        <rosparam command="load" file="$(find husky_panda_slam)/config/slam_toolbox/mapper_params_localization.yaml" />
-    </node>
+    <arg name="slam_algorithm" default="slam_toolbox" doc="slam algorithm type [slam_toolbox, cartographer, gmapping, hector]"/>
+    
+    <group if="$(eval slam_algorithm == 'slam_toolbox')">
+        <node pkg="slam_toolbox" type="localization_slam_toolbox_node" name="slam_toolbox" output="screen">
+            <rosparam command="load" file="$(find husky_panda_slam)/config/slam_toolbox/mapper_params_localization.yaml" />
+        </node>
+    </group>
+
+    <group if="$(eval slam_algorithm == 'cartographer')">
+        <arg name="map_file_name" default="door_experiment" />
+        <arg name="map_file_path" default="$(find husky_panda_slam)/config/cartographer/maps/$(arg map_file_name).pbstream"/>
+        <arg name="cartographer_config" default="cartographer_config_localization.lua" />
+        <!-- cartographer_node -->
+        <node pkg="cartographer_ros" type="cartographer_node" name="cartographer_node" args="-configuration_directory $(find husky_panda_slam)/config/$(arg slam_algorithm)
+    -configuration_basename $(arg cartographer_config) -load_state_filename $(arg map_file_path)" output="screen">
+            <remap from="/scan" to="fake_scan"/>
+            <!-- <remap from="/scan_1" to="/front_scan" />
+    	    <remap from="/scan_2" to="/rear_scan" /> -->
+            <remap from="/imu" to="/imu/data" />
+            <remap from="/odom" to="/odometry/filtered" />
+        </node>
+
+        <!-- cartographer_occupancy_grid_node -->
+        <node pkg="cartographer_ros" type="cartographer_occupancy_grid_node" name="cartographer_occupancy_grid_node" args="-resolution 0.025" />
+    </group>
+
+    <group if="$(eval slam_algorithm == 'gmapping')">
+    </group>
+
+    <group if="$(eval slam_algorithm == 'hector')">
+    </group>
 
     <!-- <include file="$(find husky_panda_slam)/launch/path_following.launch" /> -->
 

@@ -1,0 +1,23 @@
+<launch>
+
+  <arg name="tf_map_scanmatch_transform_frame_name" default="scanmatcher_frame"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="odom_frame" default="odom"/>
+  <arg name="pub_map_odom_transform" default="true"/>
+  <arg name="scan_subscriber_queue_size" default="5"/>
+  <arg name="scan_topic" default="fake_scan"/>
+  <arg name="map_size" default="2048"/>
+
+  <param name="/use_sim_time" value="false"/>
+
+  <include file="$(find hector_mapping)/launch/mapping_default.launch">
+    <arg name="tf_map_scanmatch_transform_frame_name" default="$(arg tf_map_scanmatch_transform_frame_name)"/>
+    <arg name="base_frame" default="$(arg base_frame)"/>
+    <arg name="odom_frame" default="$(arg odom_frame)"/>
+    <arg name="pub_map_odom_transform" default="$(arg pub_map_odom_transform)"/>
+    <arg name="scan_subscriber_queue_size" default="$(arg scan_subscriber_queue_size)"/>
+    <arg name="scan_topic" default="$(arg scan_topic)"/>
+    <arg name="map_size" default="$(arg map_size)"/>
+  </include>
+
+</launch>
