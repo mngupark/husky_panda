@@ -12,11 +12,11 @@ find_package(OpenMP REQUIRED)
 
 
 set(PACKAGE_DEPENDENCIES "")
-option(USE_SIGNAL_LOGGER "Adds signal logger functionality" ON)
-if (USE_SIGNAL_LOGGER)
-    add_definitions(-DSIGNAL_LOGGER)
-    set(PACKAGE_DEPENDENCIES signal_logger)
-endif()
+# option(USE_SIGNAL_LOGGER "Adds signal logger functionality" ON)
+# if (USE_SIGNAL_LOGGER)
+#     add_definitions(-DSIGNAL_LOGGER)
+#     set(PACKAGE_DEPENDENCIES signal_logger)
+# endif()
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 catkin_package(

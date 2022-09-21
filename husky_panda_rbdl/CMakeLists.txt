@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(Eigen3 REQUIRED 3.3)
 find_package(pinocchio REQUIRED)
-find_package(RBDL REQUIRED PATHS $ENV{HOME}/husky_panda_ws/lib/rbdl/install/lib)
+# find_package(RBDL REQUIRED PATHS $ENV{HOME}/husky_panda_ws/lib/rbdl/install/lib)
 
 set(PACKAGE_DEPENDENCIES geometry_msgs)
 find_package(catkin REQUIRED ${PACKAGE_DEPENDENCIES})
